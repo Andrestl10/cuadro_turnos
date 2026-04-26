@@ -101,14 +101,17 @@ const reducer = (state: State, action: Action): State => {
       return saveHistory({ shifts: state.shifts.filter(s => s.id !== action.payload) });
     case 'SET_MONTH':
       return { ...state, currentMonth: action.payload };
-    case 'HYDRATE_MONTH':
+    case 'HYDRATE_MONTH': {
+      const doctors = Array.isArray(action.payload.doctors) ? action.payload.doctors : [];
+      const shifts = Array.isArray(action.payload.shifts) ? action.payload.shifts : [];
       return {
         ...state,
-        doctors: action.payload.doctors,
-        shifts: action.payload.shifts,
+        doctors,
+        shifts,
         past: [],
         future: []
       };
+    }
     case 'UNDO':
       if (state.past.length === 0) return state;
       {

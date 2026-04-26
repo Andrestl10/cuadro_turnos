@@ -3,11 +3,13 @@ import type { Doctor, Shift, ValidationResult } from '../types';
 
 export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationResult[] => {
   const results: ValidationResult[] = [];
+  const safeDoctors = Array.isArray(doctors) ? doctors : [];
+  const safeShifts = Array.isArray(shifts) ? shifts : [];
 
   // Group shifts by doctor
   const shiftsByDoctor: Record<string, Shift[]> = {};
-  doctors.forEach(d => shiftsByDoctor[d.id] = []);
-  shifts.forEach(s => {
+  safeDoctors.forEach(d => shiftsByDoctor[d.id] = []);
+  safeShifts.forEach(s => {
     if (shiftsByDoctor[s.doctorId]) {
       shiftsByDoctor[s.doctorId].push(s);
     }
@@ -19,7 +21,7 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
   });
 
   // Check rules per doctor
-  doctors.forEach(doc => {
+  safeDoctors.forEach(doc => {
     const docShifts = shiftsByDoctor[doc.id];
     let consecutiveDays = 0;
     
@@ -119,7 +121,7 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
 
   // Check Daily Quotas
   const shiftsByDate: Record<string, { day: number, night: number }> = {};
-  shifts.forEach(s => {
+  safeShifts.forEach(s => {
     if (!shiftsByDate[s.dateStr]) {
       shiftsByDate[s.dateStr] = { day: 0, night: 0 };
     }

@@ -17,6 +17,19 @@ export type ScheduleDoc = {
   updatedAt: number;
 };
 
+/**
+ * RTDB payloads may be partial or legacy; never pass undefined arrays into React state.
+ */
+export function normalizeScheduleDoc(raw: unknown): ScheduleDoc | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const doctors = Array.isArray(o.doctors) ? (o.doctors as Doctor[]) : [];
+  const shifts = Array.isArray(o.shifts) ? (o.shifts as Shift[]) : [];
+  const updatedAt =
+    typeof o.updatedAt === 'number' && Number.isFinite(o.updatedAt) ? o.updatedAt : Date.now();
+  return { doctors, shifts, updatedAt };
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -35,11 +48,13 @@ export function schedulePath(monthKey: string): string {
 export async function loadSchedule(db: Database, monthKey: string): Promise<ScheduleDoc | null> {
   const snapshot = await get(ref(db, schedulePath(monthKey)));
   if (!snapshot.exists()) return null;
-  return snapshot.val() as ScheduleDoc;
+  return normalizeScheduleDoc(snapshot.val());
 }
 
 export async function saveSchedule(db: Database, monthKey: string, data: Omit<ScheduleDoc, 'updatedAt'>) {
-  await set(ref(db, schedulePath(monthKey)), { ...data, updatedAt: Date.now() });
+  const doctors = Array.isArray(data.doctors) ? data.doctors : [];
+  const shifts = Array.isArray(data.shifts) ? data.shifts : [];
+  await set(ref(db, schedulePath(monthKey)), { doctors, shifts, updatedAt: Date.now() });
 }
 
 export type RequestStatus = 'open' | 'reviewed' | 'approved' | 'rejected';

@@ -88,36 +88,6 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
       className={`drop-zone ${type}-zone ${isOver ? 'active' : ''}`}
     >
       <div className="drop-zone-title">{title}</div>
-<<<<<<< HEAD
-      {shifts.map((shift: any) => {
-        const doc = doctors.find((d: any) => d.id === shift.doctorId);
-        if (!doc) return null;
-        const timeText = getShiftHoursText(shift, doc);
-        
-        return (
-          <div 
-            key={shift.id} 
-            className="shift-badge" 
-            style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', cursor: readOnly ? 'default' : 'pointer', maxWidth: '100%', boxSizing: 'border-box' }} 
-            title={`${doc.name} (${timeText}) - Clic para ajustar horario`}
-            onClick={() => {
-              if (readOnly) return;
-              onEditShift(shift);
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2, overflow: 'hidden', minWidth: 0, flex: 1 }}>
-              <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{doc.name}</span>
-              <span style={{ fontSize: '0.6rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>{timeText}</span>
-            </div>
-            {!readOnly && (
-              <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0 }}>
-                <X size={12} />
-              </button>
-            )}
-          </div>
-        );
-      })}
-=======
       {(() => {
         const rendered = new Set<string>();
         return shifts.map((shift: any) => {
@@ -125,11 +95,17 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
           const doc = doctors.find((d: any) => d.id === shift.doctorId);
           if (!doc) return null;
 
-          // Check if this doctor has a partner assigned on the same day/type
           const partnerShift = doc.partnerId
-            ? shifts.find((s: any) => s.doctorId === doc.partnerId && s.dateStr === shift.dateStr && s.type === shift.type)
+            ? shifts.find(
+                (s: any) =>
+                  s.doctorId === doc.partnerId &&
+                  s.dateStr === shift.dateStr &&
+                  s.type === shift.type
+              )
             : null;
-          const partnerDoc = partnerShift ? doctors.find((d: any) => d.id === partnerShift.doctorId) : null;
+          const partnerDoc = partnerShift
+            ? doctors.find((d: any) => d.id === partnerShift.doctorId)
+            : null;
 
           if (partnerShift && partnerDoc) {
             rendered.add(shift.id);
@@ -137,28 +113,142 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
             const timeA = getShiftHoursText(shift, doc);
             const timeB = getShiftHoursText(partnerShift, partnerDoc);
             return (
-              <div key={shift.id} style={{ display: 'flex', flexDirection: 'column', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', width: '100%', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
-                {/* Morning half */}
-                <div style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: 'pointer' }}
-                  onClick={() => onEditShift(shift)} title={`${doc.name} (${timeA}) - Mañana`}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{doc.name}</span>
+              <div
+                key={shift.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRadius: '6px',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  width: '100%',
+                  animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: doc.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 6px',
+                    cursor: readOnly ? 'default' : 'pointer'
+                  }}
+                  onClick={() => {
+                    if (readOnly) return;
+                    onEditShift(shift);
+                  }}
+                  title={`${doc.name} (${timeA}) - Mañana`}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minWidth: 0,
+                      lineHeight: 1.2
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'white'
+                      }}
+                    >
+                      {doc.name}
+                    </span>
                     <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeA}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <X size={10} />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dispatch({ type: 'REMOVE_SHIFT', payload: shift.id });
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        background: 'rgba(255,255,255,0.2)',
+                        border: 'none',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '16px',
+                        height: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
                 </div>
-                {/* Afternoon half */}
-                <div style={{ backgroundColor: partnerDoc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.3)' }}
-                  onClick={() => onEditShift(partnerShift)} title={`${partnerDoc.name} (${timeB}) - Tarde`}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{partnerDoc.name}</span>
+                <div
+                  style={{
+                    backgroundColor: partnerDoc.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 6px',
+                    cursor: readOnly ? 'default' : 'pointer',
+                    borderTop: '1px solid rgba(255,255,255,0.3)'
+                  }}
+                  onClick={() => {
+                    if (readOnly) return;
+                    onEditShift(partnerShift);
+                  }}
+                  title={`${partnerDoc.name} (${timeB}) - Tarde`}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      flex: 1,
+                      minWidth: 0,
+                      lineHeight: 1.2
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'white'
+                      }}
+                    >
+                      {partnerDoc.name}
+                    </span>
                     <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeB}</span>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: partnerShift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <X size={10} />
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dispatch({ type: 'REMOVE_SHIFT', payload: partnerShift.id });
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        background: 'rgba(255,255,255,0.2)',
+                        border: 'none',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '16px',
+                        height: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -167,25 +257,74 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
           rendered.add(shift.id);
           const timeText = getShiftHoursText(shift, doc);
           return (
-            <div 
-              key={shift.id} 
-              className="shift-badge" 
-              style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', maxWidth: '100%', boxSizing: 'border-box' }} 
+            <div
+              key={shift.id}
+              className="shift-badge"
+              style={{
+                backgroundColor: doc.color,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: readOnly ? 'default' : 'pointer',
+                maxWidth: '100%',
+                boxSizing: 'border-box'
+              }}
               title={`${doc.name} (${timeText}) - Clic para ajustar horario`}
-              onClick={() => onEditShift(shift)}
+              onClick={() => {
+                if (readOnly) return;
+                onEditShift(shift);
+              }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2, overflow: 'hidden', minWidth: 0, flex: 1 }}>
-                <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{doc.name}</span>
-                <span style={{ fontSize: '0.6rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>{timeText}</span>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  lineHeight: 1.2,
+                  overflow: 'hidden',
+                  minWidth: 0,
+                  flex: 1
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight: 'bold',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}
+                >
+                  {doc.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.6rem',
+                    opacity: 0.9,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    width: '100%'
+                  }}
+                >
+                  {timeText}
+                </span>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0 }}>
-                <X size={12} />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch({ type: 'REMOVE_SHIFT', payload: shift.id });
+                  }}
+                  style={{ flexShrink: 0 }}
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
           );
         });
       })()}
->>>>>>> ea85d8c85c795167e57b3f9e47906f3295e3ddb8
     </div>
   );
 };
