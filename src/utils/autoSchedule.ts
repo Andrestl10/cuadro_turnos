@@ -1,4 +1,4 @@
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend, subDays, parseISO } from 'date-fns';
 import type { Doctor, Shift } from '../types';
 import { validateShifts } from './validation';
 
@@ -34,8 +34,47 @@ export const generateSchedule = (
 
     // Helper to try assigning a shift type
     const tryAssign = (type: 'day' | 'night') => {
-      // Sort doctors by number of assigned shifts (ascending) to maintain equity
-      const sortedDocs = [...doctors].sort((a, b) => getShiftCount(a.id) - getShiftCount(b.id));
+      const getScore = (doc: Doctor) => {
+        let score = getShiftCount(doc.id) * 100;
+        let consecutiveBefore = 0;
+        let hadNightShiftTwoDaysAgo = false;
+        
+        for (let i = 1; i <= 3; i++) {
+          const prevDate = format(subDays(day, i), 'yyyy-MM-dd');
+          const shift = allShifts.find(s => s.dateStr === prevDate && s.doctorId === doc.id);
+          if (shift) {
+            if (shift.type === 'night') {
+              if (i === 2) hadNightShiftTwoDaysAgo = true;
+              consecutiveBefore++;
+              break; 
+            } else {
+              consecutiveBefore++;
+            }
+          } else {
+            break;
+          }
+        }
+
+        if (type === 'night') {
+          if (consecutiveBefore === 2) {
+            score -= 80; // Prefer 2 consecutive days before a night shift
+          } else if (consecutiveBefore === 0) {
+            score += 150; // Penalize starting an isolated block with a night shift
+          }
+        } else {
+          // type === 'day'
+          if (consecutiveBefore > 0 && consecutiveBefore < 3) {
+            score -= 60; // Prefer continuing a block to reach 2-3 consecutive days
+          }
+          if (hadNightShiftTwoDaysAgo) {
+            score += 200; // Heavily penalize 24h rest to strongly prefer 48h rest
+          }
+        }
+        return score;
+      };
+
+      // Sort doctors by score (lowest score = best candidate)
+      const sortedDocs = [...doctors].sort((a, b) => getScore(a) - getScore(b));
 
       for (const doc of sortedDocs) {
         // If doc is already assigned on this day, skip

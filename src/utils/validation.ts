@@ -63,15 +63,22 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
       if (current.type === 'night') {
         if (next) {
           const daysDiff = differenceInDays(parseISO(next.dateStr), parseISO(current.dateStr));
-          // A night shift goes into the next day. A 48h rest means if night shift is on Monday (ends Tuesday 6AM),
-          // next shift cannot be before Thursday 6AM. Which means daysDiff must be >= 3.
-          if (daysDiff < 3) {
+          // A night shift goes into the next day. 48h rest means daysDiff >= 3. 24h rest means daysDiff === 2.
+          if (daysDiff < 2) {
             results.push({
               isValid: false,
-              message: `Dr. ${doc.name} no cumple el descanso de 48h después del turno nocturno del ${current.dateStr}.`,
+              message: `Dr. ${doc.name} no tiene descanso después del turno nocturno del ${current.dateStr}.`,
               type: 'error',
               doctorId: doc.id,
               dateStr: current.dateStr
+            });
+          } else if (daysDiff === 2) {
+            results.push({
+              isValid: true,
+              message: `Dr. ${doc.name} tiene solo 24h de descanso tras el turno de noche del ${current.dateStr} (Preferible 48h).`,
+              type: 'warning',
+              doctorId: doc.id,
+              dateStr: next.dateStr
             });
           }
 
