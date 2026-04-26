@@ -4,7 +4,78 @@ import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, start
 import { useDroppable } from '@dnd-kit/core';
 import { X } from 'lucide-react';
 
-const DroppableZone = ({ id, title, type, shifts, doctors, dateStr }: any) => {
+const EditShiftModal = ({ shift, onClose }: { shift: any, onClose: () => void }) => {
+  const { state, dispatch } = useStore();
+  const doc = state.doctors.find(d => d.id === shift.doctorId);
+  
+  const defaultStart = shift.type === 'day' ? '06:00' : '18:00';
+  const defaultEndDay = (6 + (doc?.shiftHours || 12)).toString().padStart(2, '0') + ':00';
+  const defaultEndNight = ((18 + (doc?.shiftHours || 12)) % 24).toString().padStart(2, '0') + ':00';
+  const defaultEnd = shift.type === 'day' ? defaultEndDay : defaultEndNight;
+
+  const [startTime, setStartTime] = React.useState(shift.customStartTime || defaultStart);
+  const [endTime, setEndTime] = React.useState(shift.customEndTime || defaultEnd);
+
+  if (!doc) return null;
+
+  const handleSave = () => {
+    dispatch({ type: 'UPDATE_SHIFT', payload: { ...shift, customStartTime: startTime, customEndTime: endTime } });
+    onClose();
+  };
+
+  const handleReset = () => {
+    const updated = { ...shift };
+    delete updated.customStartTime;
+    delete updated.customEndTime;
+    dispatch({ type: 'UPDATE_SHIFT', payload: updated });
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2>Ajustar Horario: {doc.name}</h2>
+          <button className="btn-icon" onClick={onClose}><X size={20}/></button>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>Hora de Llegada</label>
+            <input type="time" className="form-control" value={startTime} onChange={e => setStartTime(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>Hora de Salida</label>
+            <input type="time" className="form-control" value={endTime} onChange={e => setEndTime(e.target.value)} />
+          </div>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+          Cambiar esto solo afectará a este día específico ({shift.dateStr}).
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
+          <button className="btn" style={{ background: '#E5E7EB' }} onClick={handleReset}>Restablecer</button>
+          <button className="btn btn-primary" onClick={handleSave}>Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const getShiftHoursText = (shift: any, doc: any) => {
+  if (shift.customStartTime && shift.customEndTime) {
+    return `${shift.customStartTime} - ${shift.customEndTime}`;
+  }
+
+  const hours = doc.shiftHours;
+  if (shift.type === 'day') {
+    const endHour = 6 + hours;
+    return `06:00 - ${endHour.toString().padStart(2, '0')}:00`;
+  } else {
+    const endHour = (18 + hours) % 24;
+    return `18:00 - ${endHour.toString().padStart(2, '0')}:00`;
+  }
+};
+
+const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift }: any) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
     data: { dateStr, type }
@@ -20,10 +91,21 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr }: any) => {
       {shifts.map((shift: any) => {
         const doc = doctors.find((d: any) => d.id === shift.doctorId);
         if (!doc) return null;
+        const timeText = getShiftHoursText(shift, doc);
+        
         return (
-          <div key={shift.id} className="shift-badge" style={{ backgroundColor: doc.color }} title={doc.name}>
-            <span>{doc.name}</span>
-            <button onClick={() => dispatch({ type: 'REMOVE_SHIFT', payload: shift.id })}>
+          <div 
+            key={shift.id} 
+            className="shift-badge" 
+            style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} 
+            title={`${doc.name} (${timeText}) - Clic para ajustar horario`}
+            onClick={() => onEditShift(shift)}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+              <span style={{ fontWeight: 'bold' }}>{doc.name}</span>
+              <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{timeText}</span>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }}>
               <X size={12} />
             </button>
           </div>
@@ -35,6 +117,7 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr }: any) => {
 
 export const Calendar = () => {
   const { state } = useStore();
+  const [editingShift, setEditingShift] = React.useState<any>(null);
   const monthStart = startOfMonth(state.currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday is 1
@@ -79,7 +162,8 @@ export const Calendar = () => {
               type="day" 
               shifts={dayShiftsList} 
               doctors={state.doctors} 
-              dateStr={dateStr} 
+              dateStr={dateStr}
+              onEditShift={setEditingShift}
             />
             
             <DroppableZone 
@@ -88,11 +172,16 @@ export const Calendar = () => {
               type="night" 
               shifts={nightShiftsList} 
               doctors={state.doctors} 
-              dateStr={dateStr} 
+              dateStr={dateStr}
+              onEditShift={setEditingShift}
             />
           </div>
         );
       })}
+      
+      {editingShift && (
+        <EditShiftModal shift={editingShift} onClose={() => setEditingShift(null)} />
+      )}
     </div>
   );
 };

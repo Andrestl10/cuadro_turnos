@@ -16,6 +16,7 @@ type Action =
   | { type: 'UPDATE_DOCTOR'; payload: Doctor }
   | { type: 'ADD_SHIFT'; payload: Omit<Shift, 'id'> }
   | { type: 'ADD_SHIFTS'; payload: Omit<Shift, 'id'>[] }
+  | { type: 'UPDATE_SHIFT'; payload: Shift }
   | { type: 'REMOVE_SHIFT'; payload: string }
   | { type: 'SET_MONTH'; payload: Date }
   | { type: 'UNDO' }
@@ -87,6 +88,10 @@ const reducer = (state: State, action: Action): State => {
     case 'ADD_SHIFTS':
       const newShiftsWithIds = action.payload.map(s => ({ ...s, id: uuidv4() }));
       return saveHistory({ shifts: [...state.shifts, ...newShiftsWithIds] });
+    case 'UPDATE_SHIFT':
+      return saveHistory({
+        shifts: state.shifts.map(s => s.id === action.payload.id ? action.payload : s)
+      });
     case 'REMOVE_SHIFT':
       return saveHistory({ shifts: state.shifts.filter(s => s.id !== action.payload) });
     case 'SET_MONTH':

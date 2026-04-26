@@ -17,6 +17,8 @@ export interface Shift {
   dateStr: string; // YYYY-MM-DD
   type: ShiftType;
   doctorId: string;
+  customStartTime?: string;
+  customEndTime?: string;
 }
 
 export interface ValidationResult {
