@@ -75,7 +75,7 @@ const getShiftHoursText = (shift: any, doc: any) => {
   }
 };
 
-const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift }: any) => {
+const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift, readOnly }: any) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
     data: { dateStr, type }
@@ -109,27 +109,31 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift 
             return (
               <div key={shift.id} style={{ display: 'flex', flexDirection: 'column', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', width: '100%', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
                 {/* Morning half */}
-                <div style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: 'pointer' }}
-                  onClick={() => onEditShift(shift)} title={`${doc.name} (${timeA}) - Mañana`}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{doc.name}</span>
-                    <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeA}</span>
+                  <div style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: readOnly ? 'default' : 'pointer' }}
+                    onClick={() => !readOnly && onEditShift(shift)} title={`${doc.name} (${timeA}) - Mañana`}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{doc.name}</span>
+                      <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeA}</span>
+                    </div>
+                    {!readOnly && (
+                      <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <X size={10} />
+                      </button>
+                    )}
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <X size={10} />
-                  </button>
-                </div>
                 {/* Afternoon half */}
-                <div style={{ backgroundColor: partnerDoc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.3)' }}
-                  onClick={() => onEditShift(partnerShift)} title={`${partnerDoc.name} (${timeB}) - Tarde`}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{partnerDoc.name}</span>
-                    <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeB}</span>
+                  <div style={{ backgroundColor: partnerDoc.color, display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', cursor: readOnly ? 'default' : 'pointer', borderTop: '1px solid rgba(255,255,255,0.3)' }}
+                    onClick={() => !readOnly && onEditShift(partnerShift)} title={`${partnerDoc.name} (${timeB}) - Tarde`}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{partnerDoc.name}</span>
+                      <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeB}</span>
+                    </div>
+                    {!readOnly && (
+                      <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: partnerShift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <X size={10} />
+                      </button>
+                    )}
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: partnerShift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <X size={10} />
-                  </button>
-                </div>
               </div>
             );
           }
@@ -140,17 +144,19 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift 
             <div 
               key={shift.id} 
               className="shift-badge" 
-              style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', maxWidth: '100%', boxSizing: 'border-box' }} 
-              title={`${doc.name} (${timeText}) - Clic para ajustar horario`}
-              onClick={() => onEditShift(shift)}
+              style={{ backgroundColor: doc.color, display: 'flex', alignItems: 'center', gap: '6px', cursor: readOnly ? 'default' : 'pointer', maxWidth: '100%', boxSizing: 'border-box' }} 
+              title={`${doc.name} (${timeText})${!readOnly ? ' - Clic para ajustar horario' : ''}`}
+              onClick={() => !readOnly && onEditShift(shift)}
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2, overflow: 'hidden', minWidth: 0, flex: 1 }}>
                 <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{doc.name}</span>
                 <span style={{ fontSize: '0.6rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>{timeText}</span>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0 }}>
-                <X size={12} />
-              </button>
+              {!readOnly && (
+                <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0 }}>
+                  <X size={12} />
+                </button>
+              )}
             </div>
           );
         });
@@ -159,7 +165,7 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift 
   );
 };
 
-export const Calendar = () => {
+export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { state } = useStore();
   const [editingShift, setEditingShift] = React.useState<any>(null);
   const monthStart = startOfMonth(state.currentMonth);
@@ -208,6 +214,7 @@ export const Calendar = () => {
               doctors={state.doctors} 
               dateStr={dateStr}
               onEditShift={setEditingShift}
+              readOnly={readOnly}
             />
             
             <DroppableZone 
@@ -218,6 +225,7 @@ export const Calendar = () => {
               doctors={state.doctors} 
               dateStr={dateStr}
               onEditShift={setEditingShift}
+              readOnly={readOnly}
             />
           </div>
         );
