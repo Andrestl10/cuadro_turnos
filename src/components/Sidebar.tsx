@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useDraggable } from '@dnd-kit/core';
 import { validateShifts } from '../utils/validation';
-import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil } from 'lucide-react';
+import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil, Link2 } from 'lucide-react';
 import { EditDoctorModal } from './EditDoctorModal';
+import { PairManager } from './PairManager';
 
 const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) => void }) => {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `doc-${doctor.id}`,
     data: { doctor }
@@ -26,6 +27,12 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {doctor.fixedShiftType && <span style={{ fontSize: '0.6rem', background: '#E5E7EB', padding: '2px 4px', borderRadius: '4px' }}>Fijo: {doctor.fixedShiftType === 'day' ? 'Día' : 'Noche'}</span>}
         {doctor.noWeekends && <span style={{ fontSize: '0.6rem', background: '#FEE2E2', color: '#991B1B', padding: '2px 4px', borderRadius: '4px' }}>L-V</span>}
+        {doctor.partnerId && (
+          <span title={`Comparte turno con: ${state.doctors.find(d => d.id === doctor.partnerId)?.name}`}
+            style={{ fontSize: '0.6rem', background: '#EDE9FE', color: '#5B21B6', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+            <Link2 size={9} /> Par
+          </span>
+        )}
 
         <button
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
@@ -53,7 +60,7 @@ export const Sidebar = () => {
   const [newDocName, setNewDocName] = useState('');
   const [maxShifts, setMaxShifts] = useState(15);
   const [shiftHours, setShiftHours] = useState(12);
-  const [activeTab, setActiveTab] = useState<'doctors' | 'stats'>('doctors');
+  const [activeTab, setActiveTab] = useState<'doctors' | 'pairs' | 'stats'>('doctors');
   const [editingDoctor, setEditingDoctor] = useState<any>(null);
 
   const stats = state.doctors.map(doc => {
@@ -92,15 +99,21 @@ export const Sidebar = () => {
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '8px' }}>
         <button
-          style={{ flex: 1, padding: '8px', border: 'none', background: activeTab === 'doctors' ? 'var(--primary)' : 'transparent', color: activeTab === 'doctors' ? 'white' : 'var(--text-main)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s' }}
+          style={{ flex: 1, padding: '7px 4px', border: 'none', background: activeTab === 'doctors' ? 'var(--primary)' : 'transparent', color: activeTab === 'doctors' ? 'white' : 'var(--text-main)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s', fontSize: '0.8rem' }}
           onClick={() => setActiveTab('doctors')}
         >
           Plantilla
         </button>
         <button
-          style={{ flex: 1, padding: '8px', border: 'none', background: activeTab === 'stats' ? 'var(--primary)' : 'transparent', color: activeTab === 'stats' ? 'white' : 'var(--text-main)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s' }}
+          style={{ flex: 1, padding: '7px 4px', border: 'none', background: activeTab === 'pairs' ? 'var(--primary)' : 'transparent', color: activeTab === 'pairs' ? 'white' : 'var(--text-main)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s', fontSize: '0.8rem' }}
+          onClick={() => setActiveTab('pairs')}
+        >
+          Parejas
+        </button>
+        <button
+          style={{ flex: 1, padding: '7px 4px', border: 'none', background: activeTab === 'stats' ? 'var(--primary)' : 'transparent', color: activeTab === 'stats' ? 'white' : 'var(--text-main)', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s', fontSize: '0.8rem' }}
           onClick={() => setActiveTab('stats')}
         >
           Estadísticas
@@ -145,6 +158,10 @@ export const Sidebar = () => {
           {state.doctors.map(doc => (
             <DraggableDoctor key={doc.id} doctor={doc} onEdit={setEditingDoctor} />
           ))}
+        </div>
+      ) : activeTab === 'pairs' ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+          <PairManager />
         </div>
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>

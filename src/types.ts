@@ -10,6 +10,10 @@ export interface Doctor {
   maxMonthlyShifts: number;
   shiftHours: number;
   noWeekends: boolean;
+  onlyWeekends?: boolean;
+  onlyEvenDays?: boolean;
+  onlyOddDays?: boolean;
+  partnerId?: string; // ID of the doctor who shares the day shift (half-shift pair)
 }
 
 export interface Shift {
