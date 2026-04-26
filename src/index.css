@@ -26,6 +26,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Glassmorphism utility */
@@ -103,10 +104,12 @@ body {
 
 .main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .header {
@@ -114,6 +117,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 /* Doctors List */
@@ -149,12 +154,20 @@ body {
 }
 
 /* Calendar */
+.calendar-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 12px;
   flex: 1;
   align-content: start;
+  min-width: 980px;
 }
 
 .calendar-day {
@@ -225,8 +238,13 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   white-space: nowrap;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.shift-badge > div {
+  min-width: 0;
 }
 
 .shift-badge span {
@@ -326,4 +344,42 @@ body {
   border: 1px solid #D1D5DB;
   border-radius: 8px;
   font-family: inherit;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 320px;
+  }
+
+  .calendar-grid {
+    min-width: 920px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 45vh;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.4);
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .header {
+    align-items: flex-start;
+  }
+
+  .calendar-grid {
+    min-width: 860px;
+  }
 }

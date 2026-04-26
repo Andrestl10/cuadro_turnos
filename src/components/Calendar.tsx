@@ -101,7 +101,7 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift 
             title={`${doc.name} (${timeText}) - Clic para ajustar horario`}
             onClick={() => onEditShift(shift)}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2, minWidth: 0, maxWidth: '100%' }}>
               <span style={{ fontWeight: 'bold' }}>{doc.name}</span>
               <span style={{ fontSize: '0.6rem', opacity: 0.9 }}>{timeText}</span>
             </div>
@@ -127,61 +127,79 @@ export const Calendar = () => {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
 
   return (
-    <div className="calendar-grid glass" style={{ padding: '20px' }}>
-      {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-        <div key={day} style={{ textAlign: 'center', fontWeight: 'bold', padding: '10px 0', color: 'var(--text-muted)' }}>{day}</div>
-      ))}
-      {days.map(day => {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const dayShifts = state.shifts.filter(s => s.dateStr === dateStr);
-        const dayShiftsList = dayShifts.filter(s => s.type === 'day');
-        const nightShiftsList = dayShifts.filter(s => s.type === 'night');
-        
-        const isCurrentMonth = isSameMonth(day, monthStart);
-        const wknd = isWeekend(day);
-
-        return (
-          <div 
-            key={day.toString()} 
-            className="calendar-day" 
-            style={{ 
-              opacity: isCurrentMonth ? 1 : 0.4, 
-              border: '1px solid rgba(0,0,0,0.05)', 
-              borderRadius: '8px',
-              background: 'white'
-            }}
-          >
-            <div className="day-header">
-              <span>{format(day, dateFormat)}</span>
-              {wknd && <span style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>Fin de semana</span>}
+    <>
+      <div className="calendar-scroll">
+        <div className="calendar-grid glass" style={{ padding: '20px' }}>
+          {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+            <div
+              key={day}
+              style={{
+                textAlign: 'center',
+                fontWeight: 'bold',
+                padding: '10px 0',
+                color: 'var(--text-muted)'
+              }}
+            >
+              {day}
             </div>
-            
-            <DroppableZone 
-              id={`drop-${dateStr}-day`} 
-              title={`Día (${dayShiftsList.length}/${wknd ? 4 : 7})`} 
-              type="day" 
-              shifts={dayShiftsList} 
-              doctors={state.doctors} 
-              dateStr={dateStr}
-              onEditShift={setEditingShift}
-            />
-            
-            <DroppableZone 
-              id={`drop-${dateStr}-night`} 
-              title={`Noche (${nightShiftsList.length}/1)`} 
-              type="night" 
-              shifts={nightShiftsList} 
-              doctors={state.doctors} 
-              dateStr={dateStr}
-              onEditShift={setEditingShift}
-            />
-          </div>
-        );
-      })}
-      
+          ))}
+          {days.map(day => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            const dayShifts = state.shifts.filter(s => s.dateStr === dateStr);
+            const dayShiftsList = dayShifts.filter(s => s.type === 'day');
+            const nightShiftsList = dayShifts.filter(s => s.type === 'night');
+
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            const wknd = isWeekend(day);
+
+            return (
+              <div
+                key={day.toString()}
+                className="calendar-day"
+                style={{
+                  opacity: isCurrentMonth ? 1 : 0.4,
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  borderRadius: '8px',
+                  background: 'white'
+                }}
+              >
+                <div className="day-header">
+                  <span>{format(day, dateFormat)}</span>
+                  {wknd && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>
+                      Fin de semana
+                    </span>
+                  )}
+                </div>
+
+                <DroppableZone
+                  id={`drop-${dateStr}-day`}
+                  title={`Día (${dayShiftsList.length}/${wknd ? 4 : 7})`}
+                  type="day"
+                  shifts={dayShiftsList}
+                  doctors={state.doctors}
+                  dateStr={dateStr}
+                  onEditShift={setEditingShift}
+                />
+
+                <DroppableZone
+                  id={`drop-${dateStr}-night`}
+                  title={`Noche (${nightShiftsList.length}/1)`}
+                  type="night"
+                  shifts={nightShiftsList}
+                  doctors={state.doctors}
+                  dateStr={dateStr}
+                  onEditShift={setEditingShift}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {editingShift && (
         <EditShiftModal shift={editingShift} onClose={() => setEditingShift(null)} />
       )}
-    </div>
+    </>
   );
 };
