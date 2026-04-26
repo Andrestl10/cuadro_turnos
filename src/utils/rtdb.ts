@@ -1,4 +1,14 @@
-import { ref, get, set, push, update, type Database } from 'firebase/database';
+import {
+  ref,
+  get,
+  set,
+  push,
+  update,
+  query,
+  orderByChild,
+  equalTo,
+  type Database
+} from 'firebase/database';
 import type { Doctor, Shift } from '../types';
 
 export type ScheduleDoc = {
@@ -52,8 +62,30 @@ export function requestsPath(monthKey: string) {
   return `requests/${monthKey}`;
 }
 
-export async function loadRequests(db: Database, monthKey: string): Promise<ChangeRequest[]> {
-  const snapshot = await get(ref(db, requestsPath(monthKey)));
+export type LoadRequestsOptions = {
+  role: 'admin' | 'doctor';
+  uid?: string;
+};
+
+/**
+ * Loads change requests for a month.
+ * ASSUMPTION: RTDB rules allow admins to read the whole month node, while doctors
+ * must query by `uid` (see database.rules.json).
+ */
+export async function loadRequests(
+  db: Database,
+  monthKey: string,
+  options: LoadRequestsOptions
+): Promise<ChangeRequest[]> {
+  const baseRef = ref(db, requestsPath(monthKey));
+  let snapshot;
+  if (options.role === 'admin') {
+    snapshot = await get(baseRef);
+  } else {
+    if (!options.uid) return [];
+    snapshot = await get(query(baseRef, orderByChild('uid'), equalTo(options.uid)));
+  }
+
   if (!snapshot.exists()) return [];
   const raw = snapshot.val() as Record<string, ChangeRequest>;
   return Object.entries(raw).map(([id, value]) => ({ ...value, id }));

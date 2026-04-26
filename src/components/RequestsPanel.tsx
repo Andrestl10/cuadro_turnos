@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { firebaseDb } from '../firebase';
 import { createRequest, loadRequests, type ChangeRequest, updateRequestStatus, toMonthKey } from '../utils/rtdb';
@@ -30,22 +30,24 @@ export function RequestsPanel() {
     return sorted.filter((r) => r.uid === uid);
   }, [items, role, user?.uid]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await loadRequests(firebaseDb, monthKey);
+      const data = await loadRequests(firebaseDb, monthKey, {
+        role,
+        uid: user?.uid
+      });
       setItems(data);
     } catch (err) {
       console.warn('loadRequests failed', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [monthKey, role, user?.uid]);
 
   useEffect(() => {
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthKey]);
+  }, [refresh]);
 
   const submit = async () => {
     setError(null);

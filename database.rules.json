@@ -19,12 +19,13 @@
 
     "requests": {
       "$monthKey": {
+        ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (query.orderByChild == 'uid' && query.equalTo == auth.uid))",
+        ".indexOn": ["uid", "status", "createdAt"],
         "$requestId": {
           ".read": "auth != null && (data.child('uid').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin')",
-          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (newData.child('uid').val() === auth.uid && newData.child('status').val() === 'open'))"
+          ".write": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('status').val() === 'open'))"
         }
       }
     }
   }
 }
-
