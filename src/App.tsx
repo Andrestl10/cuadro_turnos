@@ -3,18 +3,19 @@ import { StoreProvider, useStore } from './store/StoreContext';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Calendar } from './components/Calendar';
-import { LoginPage } from './components/LoginPage';
+import { AuthPage } from './components/AuthPage';
+import { RequestsPanel } from './components/RequestsPanel';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { addMonths, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2, LogOut, ShieldCheck, User, Stethoscope } from 'lucide-react';
+import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2 } from 'lucide-react';
 import { generateSchedule } from './utils/autoSchedule';
 import './index.css';
 
-// ─── Admin full app ─────────────────────────────────────────────────────────
-const AdminApp = () => {
+// ─── Main app content (admin = full access, doctor = read-only) ──────────────
+const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const { state, dispatch } = useStore();
-  const { user, logout } = useAuth();
+  const { profile, logout } = useAuth();
   const [activeDoctor, setActiveDoctor] = useState<any>(null);
 
   const sensors = useSensors(
@@ -71,9 +72,13 @@ const AdminApp = () => {
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="app-container">
-        <Sidebar />
+        {!readOnly && <Sidebar />}
         <div className="main-content">
           <div className="header glass" style={{ padding: '12px 20px', marginBottom: '24px' }}>
             {/* Month nav */}
@@ -89,41 +94,45 @@ const AdminApp = () => {
               </button>
             </div>
 
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="btn" style={{ background: 'white', color: 'var(--primary)', border: '1px solid var(--primary)' }} onClick={handleAutoSchedule}>
-                <Wand2 size={16} /> Autocompletar
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                {profile?.email} · {profile?.role}
+              </span>
+              <button className="btn" style={{ background: 'white' }} onClick={logout}>
+                Cerrar sesión
               </button>
-              <button className="btn" style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'UNDO' })} disabled={state.past.length === 0}>
-                <Undo2 size={16} /> Deshacer
-              </button>
-              <button className="btn" style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'REDO' })} disabled={state.future.length === 0}>
-                <Redo2 size={16} /> Rehacer
-              </button>
-              <button className="btn btn-primary" onClick={exportData}><Download size={16} /> Exportar</button>
-              <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
-                <Upload size={16} /> Importar
-                <input type="file" accept=".json" style={{ display: 'none' }} onChange={importData} />
-              </label>
 
-              {/* User badge + logout */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px', padding: '6px 12px', background: 'rgba(79,70,229,0.08)', borderRadius: '20px', border: '1px solid rgba(79,70,229,0.2)' }}>
-                <ShieldCheck size={15} color="var(--primary)" />
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>{user?.displayName}</span>
-                <button title="Cerrar sesión" onClick={logout} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px', color: 'var(--text-muted)' }}>
-                  <LogOut size={15} />
-                </button>
-              </div>
+              {!readOnly && (
+                <>
+                  <button className="btn" style={{ background: 'white', color: 'var(--primary)', borderColor: 'var(--primary)', border: '1px solid' }} onClick={handleAutoSchedule}>
+                    <Wand2 size={18} /> Autocompletar
+                  </button>
+                  <button className="btn" style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'UNDO' })} disabled={state.past.length === 0}>
+                    <Undo2 size={18} /> Deshacer
+                  </button>
+                  <button className="btn" style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'REDO' })} disabled={state.future.length === 0}>
+                    <Redo2 size={18} /> Rehacer
+                  </button>
+                  <button className="btn btn-primary" onClick={exportData}>
+                    <Download size={18} /> Exportar
+                  </button>
+                  <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
+                    <Upload size={18} /> Importar
+                    <input type="file" accept=".json" style={{ display: 'none' }} onChange={importData} />
+                  </label>
+                </>
+              )}
             </div>
           </div>
 
-          <Calendar />
+          <Calendar readOnly={readOnly} />
+          <RequestsPanel />
         </div>
       </div>
       <DragOverlay>
-        {activeDoctor ? (
-          <div className="doctor-card" style={{ opacity: 0.85, cursor: 'grabbing', background: 'white', padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 15px rgba(0,0,0,0.15)' }}>
-            <div className="color-dot" style={{ backgroundColor: activeDoctor.color }} />
+        {!readOnly && activeDoctor ? (
+          <div className="doctor-card" style={{ opacity: 0.8, cursor: 'grabbing', background: 'white', padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)' }}>
+            <div className="color-dot" style={{ backgroundColor: activeDoctor.color, width: '12px', height: '12px', borderRadius: '50%' }}></div>
             <span>{activeDoctor.name}</span>
           </div>
         ) : null}
@@ -132,70 +141,35 @@ const AdminApp = () => {
   );
 };
 
-// ─── Doctor read-only view ───────────────────────────────────────────────────
-const DoctorApp = () => {
-  const { state, dispatch } = useStore();
-  const { user, logout } = useAuth();
+// ─── Root router ─────────────────────────────────────────────────────────────
+const AppRoot = () => {
+  const { user, profile, loading } = useAuth();
 
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="glass" style={{ padding: 20 }}>Cargando…</div>
+      </div>
+    );
+  }
+
+  if (!user || !profile) {
+    return <AuthPage />;
+  }
+
+  const readOnly = profile.role !== 'admin';
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%)' }}>
-      {/* Top bar */}
-      <div style={{ padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 8px rgba(31,38,135,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Stethoscope size={22} color="var(--primary)" />
-          <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Cuadro de Turnos</h1>
-          <span style={{ fontSize: '0.72rem', background: '#D1FAE5', color: '#065F46', padding: '3px 8px', borderRadius: '10px', fontWeight: 600 }}>Solo lectura</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Month nav */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.currentMonth, 1) })}>
-              <ChevronLeft size={20} />
-            </button>
-            <span style={{ fontWeight: 600, textTransform: 'capitalize', minWidth: '150px', textAlign: 'center' }}>
-              {format(state.currentMonth, 'MMMM yyyy', { locale: es })}
-            </span>
-            <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.currentMonth, 1) })}>
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
-          {/* User badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: '#D1FAE5', borderRadius: '20px', border: '1px solid #6EE7B7' }}>
-            <User size={14} color="#059669" />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#065F46' }}>{user?.displayName}</span>
-            <button title="Cerrar sesión" onClick={logout} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px', color: '#6B7280' }}>
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Read-only calendar */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '24px' }}>
-        <Calendar readOnly />
-      </div>
-    </div>
+    <StoreProvider syncEnabled={!readOnly}>
+      <AppContent readOnly={readOnly} />
+    </StoreProvider>
   );
 };
 
-// ─── Router ─────────────────────────────────────────────────────────────────
-const AppRouter = () => {
-  const { user } = useAuth();
-
-  if (!user) return <LoginPage />;
-  if (user.role === 'admin') return <AdminApp />;
-  return <DoctorApp />;
-};
-
-// ─── Root ────────────────────────────────────────────────────────────────────
+// ─── App entry ───────────────────────────────────────────────────────────────
 function App() {
   return (
     <AuthProvider>
-      <StoreProvider>
-        <AppRouter />
-      </StoreProvider>
+      <AppRoot />
     </AuthProvider>
   );
 }

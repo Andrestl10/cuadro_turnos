@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import type { Doctor, Shift } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { firebaseDb } from '../firebase';
+import { loadSchedule, saveSchedule, toMonthKey } from '../utils/rtdb';
 
 interface State {
   doctors: Doctor[];
@@ -19,6 +21,7 @@ type Action =
   | { type: 'UPDATE_SHIFT'; payload: Shift }
   | { type: 'REMOVE_SHIFT'; payload: string }
   | { type: 'SET_MONTH'; payload: Date }
+  | { type: 'HYDRATE_MONTH'; payload: { doctors: Doctor[]; shifts: Shift[] } }
   | { type: 'UNDO' }
   | { type: 'REDO' };
 
@@ -86,8 +89,10 @@ const reducer = (state: State, action: Action): State => {
     case 'ADD_SHIFT':
       return saveHistory({ shifts: [...state.shifts, { ...action.payload, id: uuidv4() }] });
     case 'ADD_SHIFTS':
-      const newShiftsWithIds = action.payload.map(s => ({ ...s, id: uuidv4() }));
-      return saveHistory({ shifts: [...state.shifts, ...newShiftsWithIds] });
+      {
+        const newShiftsWithIds = action.payload.map(s => ({ ...s, id: uuidv4() }));
+        return saveHistory({ shifts: [...state.shifts, ...newShiftsWithIds] });
+      }
     case 'UPDATE_SHIFT':
       return saveHistory({
         shifts: state.shifts.map(s => s.id === action.payload.id ? action.payload : s)
@@ -96,26 +101,39 @@ const reducer = (state: State, action: Action): State => {
       return saveHistory({ shifts: state.shifts.filter(s => s.id !== action.payload) });
     case 'SET_MONTH':
       return { ...state, currentMonth: action.payload };
+    case 'HYDRATE_MONTH':
+      return {
+        ...state,
+        doctors: action.payload.doctors,
+        shifts: action.payload.shifts,
+        past: [],
+        future: []
+      };
     case 'UNDO':
       if (state.past.length === 0) return state;
-      const previous = state.past[state.past.length - 1];
-      const newPast = state.past.slice(0, state.past.length - 1);
+      {
+        const previous = state.past.at(-1);
+        if (!previous) return state;
+        const newPast = state.past.slice(0, -1);
       return {
         ...state,
         ...previous,
         past: newPast,
         future: [{ doctors: state.doctors, shifts: state.shifts }, ...state.future]
       };
+      }
     case 'REDO':
       if (state.future.length === 0) return state;
-      const next = state.future[0];
-      const newFuture = state.future.slice(1);
-      return {
-        ...state,
-        ...next,
-        past: [...state.past, { doctors: state.doctors, shifts: state.shifts }],
-        future: newFuture
-      };
+      {
+        const next = state.future[0];
+        const newFuture = state.future.slice(1);
+        return {
+          ...state,
+          ...next,
+          past: [...state.past, { doctors: state.doctors, shifts: state.shifts }],
+          future: newFuture
+        };
+      }
     default:
       return state;
   }
@@ -123,9 +141,49 @@ const reducer = (state: State, action: Action): State => {
 
 const StoreContext = createContext<{ state: State; dispatch: React.Dispatch<Action> } | undefined>(undefined);
 
-export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolean }> = ({
+  children,
+  syncEnabled = true
+}) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  return <StoreContext.Provider value={{ state, dispatch }}>{children}</StoreContext.Provider>;
+
+  const monthKey = useMemo(() => toMonthKey(state.currentMonth), [state.currentMonth]);
+  const contextValue = useMemo(() => ({ state, dispatch }), [state]);
+
+  // Load schedule for current month (and when month changes).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await loadSchedule(firebaseDb, monthKey);
+        if (cancelled) return;
+        if (remote) {
+          dispatch({ type: 'HYDRATE_MONTH', payload: { doctors: remote.doctors, shifts: remote.shifts } });
+        }
+      } catch (err) {
+        console.warn('RTDB loadSchedule failed', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [monthKey]);
+
+  // Save schedule (debounced) when doctors/shifts change.
+  useEffect(() => {
+    if (!syncEnabled) return;
+    const handle = globalThis.setTimeout(() => {
+      saveSchedule(firebaseDb, monthKey, { doctors: state.doctors, shifts: state.shifts }).catch((err) => {
+        console.warn('RTDB saveSchedule failed', err);
+      });
+    }, 600);
+
+    return () => {
+      globalThis.clearTimeout(handle);
+    };
+  }, [monthKey, state.doctors, state.shifts, syncEnabled]);
+
+  return <StoreContext.Provider value={contextValue}>{children}</StoreContext.Provider>;
 };
 
 export const useStore = () => {

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ASSUMPTION: This app uses Realtime Database for schedules/requests.
+    // Firestore is provisioned for Firebase CLI deploy; keep it closed until used.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

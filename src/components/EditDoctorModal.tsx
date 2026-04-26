@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Doctor } from '../types';
 import { useStore } from '../store/StoreContext';
 import { X, Sun, Moon } from 'lucide-react';
