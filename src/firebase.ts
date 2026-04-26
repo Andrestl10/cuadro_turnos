@@ -1,6 +1,7 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
 import { getDatabase, type Database } from 'firebase/database';
+import { getAuth, type Auth } from 'firebase/auth';
 
 type FirebaseConfig = {
   apiKey: string;
@@ -49,6 +50,7 @@ export const firebaseApp: FirebaseApp =
   getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const firebaseDb: Database = getDatabase(firebaseApp, firebaseConfig.databaseURL);
+export const firebaseAuth: Auth = getAuth(firebaseApp);
 
 export async function getFirebaseAnalytics(): Promise<Analytics | null> {
   // Analytics may be unsupported in some environments (e.g. some browsers, privacy mode).
