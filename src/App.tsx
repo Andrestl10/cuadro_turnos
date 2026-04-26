@@ -8,9 +8,13 @@ import { es } from 'date-fns/locale';
 import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2 } from 'lucide-react';
 import { generateSchedule } from './utils/autoSchedule';
 import './index.css';
+import { AuthProvider, useAuth } from './auth/AuthContext';
+import { AuthPage } from './components/AuthPage';
+import { RequestsPanel } from './components/RequestsPanel';
 
-const AppContent = () => {
+const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const { state, dispatch } = useStore();
+  const { profile, logout } = useAuth();
   const [activeDoctor, setActiveDoctor] = useState<any>(null);
 
   const sensors = useSensors(
@@ -81,13 +85,13 @@ const AppContent = () => {
   };
 
   return (
-    <DndContext 
+    <DndContext
       sensors={sensors}
-      onDragStart={handleDragStart} 
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <div className="app-container">
-        <Sidebar />
+        {!readOnly && <Sidebar />}
         <div className="main-content">
           <div className="header glass" style={{ padding: '16px 24px', marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -102,31 +106,43 @@ const AppContent = () => {
               </button>
             </div>
             
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn" style={{ background: 'white', color: 'var(--primary)', borderColor: 'var(--primary)', border: '1px solid' }} onClick={handleAutoSchedule}>
-                <Wand2 size={18} /> Autocompletar
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                {profile?.email} · {profile?.role}
+              </span>
+              <button className="btn" style={{ background: 'white' }} onClick={logout}>
+                Cerrar sesión
               </button>
-              <button className="btn" style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'UNDO' })} disabled={state.past.length === 0}>
-                <Undo2 size={18} /> Deshacer
-              </button>
-              <button className="btn" style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'REDO' })} disabled={state.future.length === 0}>
-                <Redo2 size={18} /> Rehacer
-              </button>
-              <button className="btn btn-primary" onClick={exportData}>
-                <Download size={18} /> Exportar
-              </button>
-              <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
-                <Upload size={18} /> Importar
-                <input type="file" accept=".json" style={{ display: 'none' }} onChange={importData} />
-              </label>
+
+              {!readOnly && (
+                <>
+                  <button className="btn" style={{ background: 'white', color: 'var(--primary)', borderColor: 'var(--primary)', border: '1px solid' }} onClick={handleAutoSchedule}>
+                    <Wand2 size={18} /> Autocompletar
+                  </button>
+                  <button className="btn" style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'UNDO' })} disabled={state.past.length === 0}>
+                    <Undo2 size={18} /> Deshacer
+                  </button>
+                  <button className="btn" style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'REDO' })} disabled={state.future.length === 0}>
+                    <Redo2 size={18} /> Rehacer
+                  </button>
+                  <button className="btn btn-primary" onClick={exportData}>
+                    <Download size={18} /> Exportar
+                  </button>
+                  <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
+                    <Upload size={18} /> Importar
+                    <input type="file" accept=".json" style={{ display: 'none' }} onChange={importData} />
+                  </label>
+                </>
+              )}
             </div>
           </div>
           
-          <Calendar />
+          <Calendar readOnly={readOnly} />
+          <RequestsPanel />
         </div>
       </div>
       <DragOverlay>
-        {activeDoctor ? (
+        {!readOnly && activeDoctor ? (
           <div className="doctor-card" style={{ opacity: 0.8, cursor: 'grabbing', background: 'white', padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)' }}>
             <div className="color-dot" style={{ backgroundColor: activeDoctor.color, width: '12px', height: '12px', borderRadius: '50%' }}></div>
             <span>{activeDoctor.name}</span>
@@ -137,11 +153,34 @@ const AppContent = () => {
   );
 };
 
+const AppRoot = () => {
+  const { user, profile, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="glass" style={{ padding: 20 }}>Cargando…</div>
+      </div>
+    );
+  }
+
+  if (!user || !profile) {
+    return <AuthPage />;
+  }
+
+  const readOnly = profile.role !== 'admin';
+  return (
+    <StoreProvider syncEnabled={!readOnly}>
+      <AppContent readOnly={readOnly} />
+    </StoreProvider>
+  );
+};
+
 function App() {
   return (
-    <StoreProvider>
-      <AppContent />
-    </StoreProvider>
+    <AuthProvider>
+      <AppRoot />
+    </AuthProvider>
   );
 }
 

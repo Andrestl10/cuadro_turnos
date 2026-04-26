@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "requests": {
+      "$monthKey": {
+        ".indexOn": ["uid", "status", "createdAt"]
+      }
+    }
+  }
+}
+

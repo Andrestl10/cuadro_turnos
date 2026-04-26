@@ -141,7 +141,10 @@ const reducer = (state: State, action: Action): State => {
 
 const StoreContext = createContext<{ state: State; dispatch: React.Dispatch<Action> } | undefined>(undefined);
 
-export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolean }> = ({
+  children,
+  syncEnabled = true
+}) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const monthKey = useMemo(() => toMonthKey(state.currentMonth), [state.currentMonth]);
@@ -168,6 +171,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Save schedule (debounced) when doctors/shifts change.
   useEffect(() => {
+    if (!syncEnabled) return;
     const handle = globalThis.setTimeout(() => {
       saveSchedule(firebaseDb, monthKey, { doctors: state.doctors, shifts: state.shifts }).catch((err) => {
         console.warn('RTDB saveSchedule failed', err);
@@ -177,7 +181,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => {
       globalThis.clearTimeout(handle);
     };
-  }, [monthKey, state.doctors, state.shifts]);
+  }, [monthKey, state.doctors, state.shifts, syncEnabled]);
 
   return <StoreContext.Provider value={contextValue}>{children}</StoreContext.Provider>;
 };
