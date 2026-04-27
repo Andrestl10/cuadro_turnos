@@ -61,6 +61,10 @@ export const EditDoctorModal = ({ doctor, onClose }: Props) => {
             <label>Horas / Turno</label>
             <input type="number" className="form-control" value={formData.shiftHours} onChange={e => handleChange('shiftHours', Number(e.target.value))} />
           </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label>Noches Max</label>
+            <input type="number" className="form-control" value={formData.maxMonthlyNights || 0} onChange={e => handleChange('maxMonthlyNights', Number(e.target.value))} />
+          </div>
         </div>
 
         {/* Shift type buttons */}

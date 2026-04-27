@@ -22,7 +22,7 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
   doctors.forEach(doc => {
     const docShifts = shiftsByDoctor[doc.id];
     let consecutiveDays = 0;
-    
+
     // Check Max Monthly Shifts
     if (docShifts.length > doc.maxMonthlyShifts) {
       results.push({
@@ -31,6 +31,19 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
         type: 'error',
         doctorId: doc.id
       });
+    }
+
+    // Check Max Monthly Nights
+    if (doc.maxMonthlyNights !== undefined) {
+      const nightShifts = docShifts.filter(s => s.type === 'night');
+      if (nightShifts.length > doc.maxMonthlyNights) {
+        results.push({
+          isValid: false,
+          message: `Dr. ${doc.name} excede su límite mensual de noches (${nightShifts.length} / ${doc.maxMonthlyNights}).`,
+          type: 'error',
+          doctorId: doc.id
+        });
+      }
     }
 
     for (let i = 0; i < docShifts.length; i++) {
@@ -53,6 +66,17 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
         results.push({
           isValid: false,
           message: `Dr. ${doc.name} está asignado el fin de semana (${current.dateStr}) pero su contrato es L-V.`,
+          type: 'error',
+          doctorId: doc.id,
+          dateStr: current.dateStr
+        });
+      }
+
+      // Check blackout dates
+      if (doc.blackoutDates?.includes(current.dateStr)) {
+        results.push({
+          isValid: false,
+          message: `Dr. ${doc.name} no está disponible el ${current.dateStr}.`,
           type: 'error',
           doctorId: doc.id,
           dateStr: current.dateStr

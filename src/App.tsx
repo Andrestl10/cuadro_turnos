@@ -5,34 +5,37 @@ import { Sidebar } from './components/Sidebar';
 import { Calendar } from './components/Calendar';
 import { AuthPage } from './components/AuthPage';
 import { RequestsPanel } from './components/RequestsPanel';
-import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { addMonths, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2 } from 'lucide-react';
+import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2, Sparkles } from 'lucide-react';
 import { generateSchedule } from './utils/autoSchedule';
+import { generateAISchedule } from './utils/aiScheduler';
+import type { Doctor } from './types';
 import './index.css';
 
 // ─── Main app content (admin = full access, doctor = read-only) ──────────────
 const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const { state, dispatch } = useStore();
   const { profile, logout } = useAuth();
-  const [activeDoctor, setActiveDoctor] = useState<any>(null);
+  const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleDragStart = (event: any) => setActiveDoctor(event.active.data.current.doctor);
+  const handleDragStart = (event: DragStartEvent) => setActiveDoctor(event.active.data.current?.doctor ?? null);
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { over, active } = event;
     setActiveDoctor(null);
-    if (over && active.data.current.doctor) {
-      const { dateStr, type } = over.data.current;
+    if (over && active.data.current?.doctor && over.data.current) {
+      const { dateStr, type } = over.data.current as { dateStr: string; type: string };
       const doctorId = active.data.current.doctor.id;
       const alreadyAssigned = state.shifts.find(s => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId);
       if (!alreadyAssigned) {
-        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type, doctorId } });
+        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type: type as any, doctorId } });
       }
     }
   };
@@ -71,6 +74,23 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
     }
   };
 
+  const handleAISchedule = async () => {
+    setAiLoading(true);
+    try {
+      const { shifts, reasoning } = await generateAISchedule(state.currentMonth, state.doctors, state.shifts);
+      if (shifts.length > 0) {
+        dispatch({ type: 'ADD_SHIFTS', payload: shifts });
+        alert("Sugerencia de IA aplicada.\n\nRazonamiento: " + reasoning);
+      } else {
+        alert("La IA no encontró turnos adicionales válidos para asignar.");
+      }
+    } catch (err: any) {
+      alert("Error con la IA: " + err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -104,6 +124,14 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
 
               {!readOnly && (
                 <>
+                  <button 
+                    className="btn" 
+                    style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white' }} 
+                    onClick={handleAISchedule}
+                    disabled={aiLoading}
+                  >
+                    <Sparkles size={18} /> {aiLoading ? 'Pensando...' : 'Optimizar con IA'}
+                  </button>
                   <button className="btn" style={{ background: 'white', color: 'var(--primary)', borderColor: 'var(--primary)', border: '1px solid' }} onClick={handleAutoSchedule}>
                     <Wand2 size={18} /> Autocompletar
                   </button>

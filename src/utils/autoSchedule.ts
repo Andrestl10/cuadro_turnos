@@ -1,4 +1,4 @@
-import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend, subDays, parseISO } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend, subDays } from 'date-fns';
 import type { Doctor, Shift } from '../types';
 import { validateShifts } from './validation';
 

@@ -10,17 +10,16 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const result = login(username, password);
-      if (!result.success) {
-        setError(result.error || 'Error de autenticación');
-      }
+    try {
+      await login(username, password);
+    } catch (err: any) {
+      setError(err.message || 'Error de autenticación');
       setLoading(false);
-    }, 600);
+    }
   };
 
   return (

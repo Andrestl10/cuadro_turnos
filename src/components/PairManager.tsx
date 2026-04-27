@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { Link2, Link2Off, Users } from 'lucide-react';
 

@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useDraggable } from '@dnd-kit/core';
 import { validateShifts } from '../utils/validation';
-import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil, Link2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil, Link2, Calendar } from 'lucide-react';
+import { MiniCalendar } from './MiniCalendar';
 import { EditDoctorModal } from './EditDoctorModal';
 import { PairManager } from './PairManager';
 
 const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) => void }) => {
+  const [showCalendar, setShowCalendar] = useState(false);
   const { state, dispatch } = useStore();
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `doc-${doctor.id}`,
@@ -19,7 +21,8 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
   } : undefined;
 
   return (
-    <div ref={setNodeRef} style={style} className="doctor-card">
+    <div ref={setNodeRef} style={style} className="doctor-card-container">
+    <div className="doctor-card">
       <div className="doctor-info" {...listeners} {...attributes} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'grab' }}>
         <div className="color-dot" style={{ backgroundColor: doctor.color }}></div>
         <span>{doctor.name}</span>
@@ -43,12 +46,25 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
         </button>
         <button
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
+          onClick={(e) => { e.stopPropagation(); setShowCalendar(!showCalendar); }}
+          title="Disponibilidad"
+        >
+          <Calendar size={16} color={showCalendar ? "var(--primary)" : "var(--text-muted)"} />
+        </button>
+        <button
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}
           onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_DOCTOR', payload: doctor.id }); }}
           title="Eliminar médico"
         >
           <Trash2 size={16} color="var(--danger)" />
         </button>
       </div>
+    </div>
+    {showCalendar && (
+      <div className="calendar-popover" style={{ animation: 'slideDown 0.2s ease-out' }}>
+        <MiniCalendar doctor={doctor} />
+      </div>
+    )}
     </div>
   );
 };
@@ -59,6 +75,7 @@ export const Sidebar = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [maxShifts, setMaxShifts] = useState(15);
+  const [maxNights, setMaxNights] = useState(4);
   const [shiftHours, setShiftHours] = useState(12);
   const [activeTab, setActiveTab] = useState<'doctors' | 'pairs' | 'stats'>('doctors');
   const [editingDoctor, setEditingDoctor] = useState<any>(null);
@@ -79,12 +96,13 @@ export const Sidebar = () => {
       const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
       dispatch({
         type: 'ADD_DOCTOR', payload: {
-          name: newDocName, color: randomColor, isFixed: false, fixedDays: [], maxMonthlyShifts: maxShifts, shiftHours: shiftHours,
-          noWeekends: false
+          name: newDocName, color: randomColor, isFixed: false, fixedDays: [], maxMonthlyShifts: maxShifts, maxMonthlyNights: maxNights, shiftHours: shiftHours,
+          noWeekends: false, blackoutDates: []
         }
       });
       setNewDocName('');
       setMaxShifts(15);
+      setMaxNights(4);
       setShiftHours(12);
       setShowAddForm(false);
     }
@@ -148,6 +166,15 @@ export const Sidebar = () => {
                 onChange={e => setShiftHours(Number(e.target.value))}
               />
             </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Noches Max</label>
+              <input
+                type="number"
+                className="form-control"
+                value={maxNights}
+                onChange={e => setMaxNights(Number(e.target.value))}
+              />
+            </div>
           </div>
           <button className="btn btn-primary" style={{ justifyContent: 'center' }} onClick={handleAddDoctor}>Agregar</button>
         </div>
@@ -176,7 +203,11 @@ export const Sidebar = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 <span>Día: <strong>{stat.dayCount}</strong></span>
-                <span>Noche: <strong>{stat.nightCount}</strong></span>
+                <span>
+                  Noche: <strong style={{ color: stat.maxMonthlyNights && stat.nightCount > stat.maxMonthlyNights ? 'var(--danger)' : 'inherit' }}>
+                    {stat.nightCount} {stat.maxMonthlyNights ? `/ ${stat.maxMonthlyNights}` : ''}
+                  </strong>
+                </span>
                 <span>
                   Total: <strong style={{ color: stat.total > stat.maxMonthlyShifts ? 'var(--danger)' : 'var(--primary)' }}>
                     {stat.total} / {stat.maxMonthlyShifts}
