@@ -1,12 +1,14 @@
 import React from 'react';
 import { useStore } from '../store/StoreContext';
+import { selectShiftsByDate, selectDoctorById, selectPartnerShift } from '../store/selectors';
+import type { VersionedDoctor, VersionedShift } from '../store/types';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameMonth, startOfWeek, endOfWeek, isWeekend } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
 import { X } from 'lucide-react';
 
-const EditShiftModal = ({ shift, onClose }: { shift: any, onClose: () => void }) => {
+const EditShiftModal = ({ shift, onClose }: { shift: VersionedShift; onClose: () => void }) => {
   const { state, dispatch } = useStore();
-  const doc = state.doctors.find(d => d.id === shift.doctorId);
+  const doc = selectDoctorById(state, shift.doctorId);
   
   const defaultStart = shift.type === 'day' ? '06:00' : '18:00';
   const defaultEndDay = (6 + (doc?.shiftHours || 12)).toString().padStart(2, '0') + ':00';
@@ -60,7 +62,7 @@ const EditShiftModal = ({ shift, onClose }: { shift: any, onClose: () => void })
   );
 };
 
-const getShiftHoursText = (shift: any, doc: any) => {
+const getShiftHoursText = (shift: VersionedShift, doc: VersionedDoctor) => {
   if (shift.customStartTime && shift.customEndTime) {
     return `${shift.customStartTime} - ${shift.customEndTime}`;
   }
@@ -75,12 +77,30 @@ const getShiftHoursText = (shift: any, doc: any) => {
   }
 };
 
-const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift, readOnly }: any) => {
+type DroppableZoneProps = {
+  id: string;
+  title: string;
+  type: 'day' | 'night';
+  shifts: VersionedShift[];
+  dateStr: string;
+  onEditShift: (shift: VersionedShift) => void;
+  readOnly?: boolean;
+};
+
+const DroppableZone = ({
+  id,
+  title,
+  type,
+  shifts,
+  dateStr,
+  onEditShift,
+  readOnly
+}: DroppableZoneProps) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
     data: { dateStr, type }
   });
-  const { dispatch } = useStore();
+  const { dispatch, state } = useStore();
 
   return (
     <div 
@@ -90,21 +110,16 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
       <div className="drop-zone-title">{title}</div>
       {(() => {
         const rendered = new Set<string>();
-        return shifts.map((shift: any) => {
+        return shifts.map((shift: VersionedShift) => {
           if (rendered.has(shift.id)) return null;
-          const doc = doctors.find((d: any) => d.id === shift.doctorId);
+          const doc = selectDoctorById(state, shift.doctorId);
           if (!doc) return null;
 
           const partnerShift = doc.partnerId
-            ? shifts.find(
-                (s: any) =>
-                  s.doctorId === doc.partnerId &&
-                  s.dateStr === shift.dateStr &&
-                  s.type === shift.type
-              )
+            ? selectPartnerShift(state, shift.doctorId, shift.dateStr, shift.type)
             : null;
           const partnerDoc = partnerShift
-            ? doctors.find((d: any) => d.id === partnerShift.doctorId)
+            ? selectDoctorById(state, partnerShift.doctorId)
             : null;
 
           if (partnerShift && partnerDoc) {
@@ -331,8 +346,8 @@ const DroppableZone = ({ id, title, type, shifts, doctors, dateStr, onEditShift,
 
 export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { state } = useStore();
-  const [editingShift, setEditingShift] = React.useState<any>(null);
-  const monthStart = startOfMonth(state.currentMonth);
+  const [editingShift, setEditingShift] = React.useState<VersionedShift | null>(null);
+  const monthStart = startOfMonth(state.ui.currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday is 1
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
@@ -359,7 +374,7 @@ export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
           ))}
           {days.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
-            const dayShifts = state.shifts.filter(s => s.dateStr === dateStr);
+            const dayShifts = selectShiftsByDate(state, dateStr);
             const dayShiftsList = dayShifts.filter(s => s.type === 'day');
             const nightShiftsList = dayShifts.filter(s => s.type === 'night');
 
@@ -391,7 +406,6 @@ export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
                   title={`Día (${dayShiftsList.length}/${wknd ? 4 : 7})`}
                   type="day"
                   shifts={dayShiftsList}
-                  doctors={state.doctors}
                   dateStr={dateStr}
                   onEditShift={setEditingShift}
                   readOnly={readOnly}
@@ -402,7 +416,6 @@ export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
                   title={`Noche (${nightShiftsList.length}/1)`}
                   type="night"
                   shifts={nightShiftsList}
-                  doctors={state.doctors}
                   dateStr={dateStr}
                   onEditShift={setEditingShift}
                   readOnly={readOnly}

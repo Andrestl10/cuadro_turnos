@@ -32,8 +32,8 @@ export function AuthPage() {
       } else {
         await register(email, password);
       }
-    } catch (err: any) {
-      const msg = typeof err?.message === 'string' ? err.message : 'Error autenticando.';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error autenticando.';
       setError(msg);
     } finally {
       setSubmitting(false);

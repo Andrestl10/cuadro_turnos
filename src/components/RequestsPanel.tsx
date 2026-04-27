@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { firebaseDb } from '../firebase';
-import { createRequest, loadRequests, type ChangeRequest, updateRequestStatus, toMonthKey } from '../utils/rtdb';
+import { RequestService } from '../services/RequestService';
+import { toMonthKey } from '../services/ScheduleService';
+import type { ChangeRequest } from '../utils/rtdb';
 import { useStore } from '../store/StoreContext';
 
 function isNonEmptyString(value: unknown): value is string {
@@ -11,7 +12,7 @@ function isNonEmptyString(value: unknown): value is string {
 export function RequestsPanel() {
   const { user, profile } = useAuth();
   const { state } = useStore();
-  const monthKey = useMemo(() => toMonthKey(state.currentMonth), [state.currentMonth]);
+  const monthKey = useMemo(() => toMonthKey(state.ui.currentMonth), [state.ui.currentMonth]);
 
   const [items, setItems] = useState<ChangeRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ export function RequestsPanel() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await loadRequests(firebaseDb, monthKey, {
+      const data = await RequestService.loadRequests(monthKey, {
         role,
         uid: user?.uid
       });
@@ -43,9 +44,10 @@ export function RequestsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [monthKey, role, user?.uid]);
+  }, [monthKey, role, user]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh loads RTDB asynchronously
     void refresh();
   }, [refresh]);
 
@@ -60,7 +62,7 @@ export function RequestsPanel() {
       return;
     }
     try {
-      await createRequest(firebaseDb, monthKey, {
+      await RequestService.createRequest(monthKey, {
         uid: user.uid,
         email: profile.email,
         message: message.trim(),
@@ -69,8 +71,8 @@ export function RequestsPanel() {
       setMessage('');
       setDateStr('');
       await refresh();
-    } catch (err: any) {
-      const msg = typeof err?.message === 'string' ? err.message : 'Error creando solicitud.';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error creando solicitud.';
       setError(msg);
     }
   };
@@ -78,7 +80,7 @@ export function RequestsPanel() {
   const adminUpdate = async (id: string, status: 'reviewed' | 'approved' | 'rejected') => {
     if (role !== 'admin') return;
     try {
-      await updateRequestStatus(firebaseDb, monthKey, id, { status, adminNote: adminNote[id] });
+      await RequestService.updateRequestStatus(monthKey, id, { status, adminNote: adminNote[id] });
       await refresh();
     } catch (err) {
       console.warn('updateRequestStatus failed', err);

@@ -1,14 +1,24 @@
-import { useEffect, useState } from 'react';
-import type { Doctor } from '../types';
+import { useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { useStore } from '../store/StoreContext';
+import type { VersionedDoctor } from '../store/types';
+import type { Doctor } from '../types';
 import { X, Sun, Moon } from 'lucide-react';
 
 interface Props {
-  doctor: Doctor;
+  doctor: VersionedDoctor;
   onClose: () => void;
 }
 
-const CheckRow = ({ id, checked, onChange, label, sublabel }: any) => (
+type CheckRowProps = {
+  id: string;
+  checked: boolean;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  label: string;
+  sublabel?: string;
+};
+
+const CheckRow = ({ id, checked, onChange, label, sublabel }: CheckRowProps) => (
   <label htmlFor={id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', background: checked ? 'rgba(79,70,229,0.07)' : 'transparent', border: checked ? '1px solid rgba(79,70,229,0.25)' : '1px solid transparent', transition: 'all 0.15s' }}>
     <input type="checkbox" id={id} checked={!!checked} onChange={onChange} style={{ marginTop: '2px', accentColor: 'var(--primary)' }} />
     <div>
@@ -20,13 +30,9 @@ const CheckRow = ({ id, checked, onChange, label, sublabel }: any) => (
 
 export const EditDoctorModal = ({ doctor, onClose }: Props) => {
   const { dispatch } = useStore();
-  const [formData, setFormData] = useState<Doctor>(doctor);
+  const [formData, setFormData] = useState<VersionedDoctor>(() => ({ ...doctor }));
 
-  useEffect(() => {
-    setFormData(doctor);
-  }, [doctor]);
-
-  const handleChange = (field: keyof Doctor, value: any) => {
+  const handleChange = <K extends keyof Doctor>(field: K, value: Doctor[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -94,28 +100,28 @@ export const EditDoctorModal = ({ doctor, onClose }: Props) => {
             <CheckRow
               id="noWeekends"
               checked={formData.noWeekends}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('noWeekends', e.target.checked)}
+              onChange={(e) => handleChange('noWeekends', e.target.checked)}
               label="No trabaja fines de semana"
               sublabel="Solo se le asignan turnos de Lunes a Viernes"
             />
             <CheckRow
               id="onlyWeekends"
-              checked={formData.onlyWeekends}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('onlyWeekends', e.target.checked)}
+              checked={!!formData.onlyWeekends}
+              onChange={(e) => handleChange('onlyWeekends', e.target.checked)}
               label="Solo fines de semana"
               sublabel="Solo se le asignan turnos en Sábado y Domingo"
             />
             <CheckRow
               id="onlyEvenDays"
-              checked={formData.onlyEvenDays}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('onlyEvenDays', e.target.checked)}
+              checked={!!formData.onlyEvenDays}
+              onChange={(e) => handleChange('onlyEvenDays', e.target.checked)}
               label="Solo días pares"
               sublabel="Solo se le asignan turnos en días 2, 4, 6, 8…"
             />
             <CheckRow
               id="onlyOddDays"
-              checked={formData.onlyOddDays}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('onlyOddDays', e.target.checked)}
+              checked={!!formData.onlyOddDays}
+              onChange={(e) => handleChange('onlyOddDays', e.target.checked)}
               label="Solo días impares"
               sublabel="Solo se le asignan turnos en días 1, 3, 5, 7…"
             />

@@ -2,11 +2,19 @@ import { useState } from 'react';
 import { useStore } from '../store/StoreContext';
 import { useDraggable } from '@dnd-kit/core';
 import { validateShifts } from '../utils/validation';
+import { selectAllDoctors, selectAllShifts, selectDoctorById } from '../store/selectors';
 import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil, Link2 } from 'lucide-react';
 import { EditDoctorModal } from './EditDoctorModal';
 import { PairManager } from './PairManager';
+import type { VersionedDoctor } from '../store/types';
 
-const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) => void }) => {
+const DraggableDoctor = ({
+  doctor,
+  onEdit
+}: {
+  doctor: VersionedDoctor;
+  onEdit: (doc: VersionedDoctor) => void;
+}) => {
   const { state, dispatch } = useStore();
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `doc-${doctor.id}`,
@@ -18,6 +26,8 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
     zIndex: 100,
   } : undefined;
 
+  const partnerName = doctor.partnerId ? selectDoctorById(state, doctor.partnerId)?.name : undefined;
+
   return (
     <div ref={setNodeRef} style={style} className="doctor-card">
       <div className="doctor-info" {...listeners} {...attributes} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'grab' }}>
@@ -28,7 +38,7 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
         {doctor.fixedShiftType && <span style={{ fontSize: '0.6rem', background: '#E5E7EB', padding: '2px 4px', borderRadius: '4px' }}>Fijo: {doctor.fixedShiftType === 'day' ? 'Día' : 'Noche'}</span>}
         {doctor.noWeekends && <span style={{ fontSize: '0.6rem', background: '#FEE2E2', color: '#991B1B', padding: '2px 4px', borderRadius: '4px' }}>L-V</span>}
         {doctor.partnerId && (
-          <span title={`Comparte turno con: ${state.doctors.find(d => d.id === doctor.partnerId)?.name}`}
+          <span title={`Comparte turno con: ${partnerName}`}
             style={{ fontSize: '0.6rem', background: '#EDE9FE', color: '#5B21B6', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '2px' }}>
             <Link2 size={9} /> Par
           </span>
@@ -55,16 +65,19 @@ const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) =
 
 export const Sidebar = () => {
   const { state, dispatch } = useStore();
-  const validationResults = validateShifts(state.shifts, state.doctors);
+  const allDoctors = selectAllDoctors(state);
+  const allShifts = selectAllShifts(state);
+  
+  const validationResults = validateShifts(allShifts, allDoctors);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [maxShifts, setMaxShifts] = useState(15);
   const [shiftHours, setShiftHours] = useState(12);
   const [activeTab, setActiveTab] = useState<'doctors' | 'pairs' | 'stats'>('doctors');
-  const [editingDoctor, setEditingDoctor] = useState<any>(null);
+  const [editingDoctor, setEditingDoctor] = useState<VersionedDoctor | null>(null);
 
-  const stats = state.doctors.map(doc => {
-    const docShifts = state.shifts.filter(s => s.doctorId === doc.id);
+  const stats = allDoctors.map(doc => {
+    const docShifts = allShifts.filter(s => s.doctorId === doc.id);
     return {
       ...doc,
       dayCount: docShifts.filter(s => s.type === 'day').length,
@@ -155,7 +168,7 @@ export const Sidebar = () => {
 
       {activeTab === 'doctors' ? (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {state.doctors.map(doc => (
+          {allDoctors.map(doc => (
             <DraggableDoctor key={doc.id} doctor={doc} onEdit={setEditingDoctor} />
           ))}
         </div>
@@ -208,7 +221,11 @@ export const Sidebar = () => {
       </div>
 
       {editingDoctor && (
-        <EditDoctorModal doctor={editingDoctor} onClose={() => setEditingDoctor(null)} />
+        <EditDoctorModal
+          key={editingDoctor.id}
+          doctor={editingDoctor}
+          onClose={() => setEditingDoctor(null)}
+        />
       )}
     </div>
   );

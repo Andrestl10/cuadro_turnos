@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { StoreProvider, useStore } from './store/StoreContext';
 import { Sidebar } from './components/Sidebar';
 import { Calendar } from './components/Calendar';
-import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  type DragEndEvent,
+  type DragStartEvent
+} from '@dnd-kit/core';
+import type { VersionedDoctor } from './store/types';
 import { addMonths, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2 } from 'lucide-react';
@@ -15,7 +24,7 @@ import { RequestsPanel } from './components/RequestsPanel';
 const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const { state, dispatch } = useStore();
   const { profile, logout } = useAuth();
-  const [activeDoctor, setActiveDoctor] = useState<any>(null);
+  const [activeDoctor, setActiveDoctor] = useState<VersionedDoctor | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -25,19 +34,22 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
     })
   );
 
-  const handleDragStart = (event: any) => {
-    setActiveDoctor(event.active.data.current.doctor);
+  const handleDragStart = (event: DragStartEvent) => {
+    const doc = event.active.data.current?.doctor as VersionedDoctor | undefined;
+    setActiveDoctor(doc ?? null);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { over, active } = event;
     setActiveDoctor(null);
 
-    if (over && active.data.current.doctor) {
-      const { dateStr, type } = over.data.current;
-      const doctorId = active.data.current.doctor.id;
+    const dragged = active.data.current?.doctor as VersionedDoctor | undefined;
+    if (over && dragged) {
+      const { dateStr, type } = over.data.current as { dateStr: string; type: 'day' | 'night' };
+      const doctorId = dragged.id;
 
-      const alreadyAssigned = state.shifts.find(s => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId);
+      const allShifts = Object.values(state.entities.shifts);
+      const alreadyAssigned = allShifts.find(s => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId);
       if (!alreadyAssigned) {
         dispatch({
           type: 'ADD_SHIFT',
@@ -48,7 +60,9 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   };
 
   const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ doctors: state.doctors, shifts: state.shifts }));
+    const doctorsArray = Object.values(state.entities.doctors);
+    const shiftsArray = Object.values(state.entities.shifts);
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ doctors: doctorsArray, shifts: shiftsArray }));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href",     dataStr);
     downloadAnchorNode.setAttribute("download", "turnos_export.json");
@@ -67,7 +81,7 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
             alert("Para importar datos, esta característica se habilitará en la próxima actualización de estado.");
             // En una versión completa, enviaríamos una acción 'SET_STATE' al reducer.
           }
-        } catch (err) {
+        } catch {
           alert("Error importando archivo.");
         }
       };
@@ -76,7 +90,9 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   };
 
   const handleAutoSchedule = () => {
-    const newShifts = generateSchedule(state.currentMonth, state.doctors, state.shifts);
+    const doctorsArray = Object.values(state.entities.doctors);
+    const shiftsArray = Object.values(state.entities.shifts);
+    const newShifts = generateSchedule(state.ui.currentMonth, doctorsArray, shiftsArray);
     if (newShifts.length > 0) {
       dispatch({ type: 'ADD_SHIFTS', payload: newShifts });
     } else {
@@ -95,13 +111,13 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
         <div className="main-content">
           <div className="header glass" style={{ padding: '16px 24px', marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.currentMonth, 1) })}>
+              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.ui.currentMonth, 1) })}>
                 <ChevronLeft />
               </button>
               <h1 style={{ margin: 0, fontSize: '1.5rem', textTransform: 'capitalize' }}>
-                {format(state.currentMonth, 'MMMM yyyy', { locale: es })}
+                {format(state.ui.currentMonth, 'MMMM yyyy', { locale: es })}
               </h1>
-              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.currentMonth, 1) })}>
+              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.ui.currentMonth, 1) })}>
                 <ChevronRight />
               </button>
             </div>

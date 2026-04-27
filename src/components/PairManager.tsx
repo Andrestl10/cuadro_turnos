@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/StoreContext';
+import { selectAllDoctors, selectDoctorById } from '../store/selectors';
+import type { VersionedDoctor } from '../store/types';
 import { Link2, Link2Off, Users } from 'lucide-react';
 
 export const PairManager = () => {
@@ -7,12 +9,13 @@ export const PairManager = () => {
   const [docA, setDocA] = useState('');
   const [docB, setDocB] = useState('');
 
-  // Find all existing pairs
-  const pairs: { a: any; b: any }[] = [];
+  const doctors = selectAllDoctors(state);
+
+  const pairs: { a: VersionedDoctor; b: VersionedDoctor }[] = [];
   const seen = new Set<string>();
-  for (const doc of state.doctors) {
+  for (const doc of doctors) {
     if (doc.partnerId && !seen.has(doc.id)) {
-      const partner = state.doctors.find(d => d.id === doc.partnerId);
+      const partner = selectDoctorById(state, doc.partnerId);
       if (partner) {
         pairs.push({ a: doc, b: partner });
         seen.add(doc.id);
@@ -23,9 +26,8 @@ export const PairManager = () => {
 
   const handleLink = () => {
     if (!docA || !docB || docA === docB) return;
-    // Link both doctors to each other
-    const dA = state.doctors.find(d => d.id === docA);
-    const dB = state.doctors.find(d => d.id === docB);
+    const dA = selectDoctorById(state, docA);
+    const dB = selectDoctorById(state, docB);
     if (!dA || !dB) return;
     dispatch({ type: 'UPDATE_DOCTOR', payload: { ...dA, partnerId: docB } });
     dispatch({ type: 'UPDATE_DOCTOR', payload: { ...dB, partnerId: docA } });
@@ -33,13 +35,12 @@ export const PairManager = () => {
     setDocB('');
   };
 
-  const handleUnlink = (a: any, b: any) => {
+  const handleUnlink = (a: VersionedDoctor, b: VersionedDoctor) => {
     dispatch({ type: 'UPDATE_DOCTOR', payload: { ...a, partnerId: undefined } });
     dispatch({ type: 'UPDATE_DOCTOR', payload: { ...b, partnerId: undefined } });
   };
 
-  // Only show doctors without a partner in the dropdowns
-  const availableDocs = state.doctors.filter(d => !d.partnerId);
+  const availableDocs = doctors.filter(d => !d.partnerId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
