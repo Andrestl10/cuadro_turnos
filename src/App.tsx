@@ -11,37 +11,48 @@ import { es } from 'date-fns/locale';
 import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2, Sparkles } from 'lucide-react';
 import { generateSchedule } from './utils/autoSchedule';
 import { generateAISchedule } from './utils/aiScheduler';
-import type { Doctor } from './types';
+import type { ShiftType } from './types';
+import type { VersionedDoctor } from './store/types';
 import './index.css';
 
 // ─── Main app content (admin = full access, doctor = read-only) ──────────────
 const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const { state, dispatch } = useStore();
   const { profile, logout } = useAuth();
-  const [activeDoctor, setActiveDoctor] = useState<Doctor | null>(null);
+  const [activeDoctor, setActiveDoctor] = useState<VersionedDoctor | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleDragStart = (event: DragStartEvent) => setActiveDoctor(event.active.data.current?.doctor ?? null);
+  const handleDragStart = (event: DragStartEvent) => {
+    const doc = event.active.data.current?.doctor as VersionedDoctor | undefined;
+    setActiveDoctor(doc ?? null);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { over, active } = event;
     setActiveDoctor(null);
     if (over && active.data.current?.doctor && over.data.current) {
-      const { dateStr, type } = over.data.current as { dateStr: string; type: string };
-      const doctorId = active.data.current.doctor.id;
-      const alreadyAssigned = state.shifts.find(s => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId);
+      const { dateStr, type } = over.data.current as { dateStr: string; type: ShiftType };
+      const doctorId = (active.data.current.doctor as VersionedDoctor).id;
+      const allShifts = Object.values(state.entities.shifts);
+      const alreadyAssigned = allShifts.find(
+        (s) => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId
+      );
       if (!alreadyAssigned) {
-        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type: type as any, doctorId } });
+        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type, doctorId } });
       }
     }
   };
 
   const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ doctors: state.doctors, shifts: state.shifts }));
+    const doctors = Object.values(state.entities.doctors);
+    const shifts = Object.values(state.entities.shifts);
+    const dataStr =
+      'data:text/json;charset=utf-8,' +
+      encodeURIComponent(JSON.stringify({ doctors, shifts }));
     const a = document.createElement('a');
     a.setAttribute("href", dataStr);
     a.setAttribute("download", "turnos_export.json");
@@ -79,15 +90,17 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
   const handleAISchedule = async () => {
     setAiLoading(true);
     try {
-      const { shifts, reasoning } = await generateAISchedule(state.currentMonth, state.doctors, state.shifts);
+      const doctors = Object.values(state.entities.doctors);
+      const shiftsExisting = Object.values(state.entities.shifts);
+      const { shifts, reasoning } = await generateAISchedule(state.ui.currentMonth, doctors, shiftsExisting);
       if (shifts.length > 0) {
         dispatch({ type: 'ADD_SHIFTS', payload: shifts });
         alert("Sugerencia de IA aplicada.\n\nRazonamiento: " + reasoning);
       } else {
         alert("La IA no encontró turnos adicionales válidos para asignar.");
       }
-    } catch (err: any) {
-      alert("Error con la IA: " + err.message);
+    } catch (err: unknown) {
+      alert("Error con la IA: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setAiLoading(false);
     }
@@ -105,11 +118,14 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
           <div className="header glass" style={{ padding: '12px 20px', marginBottom: '24px' }}>
             {/* Month nav */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.currentMonth, 1) })}>
+              <button
+                className="btn-icon"
+                onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.ui.currentMonth, 1) })}
+              >
                 <ChevronLeft />
               </button>
               <h1 style={{ margin: 0, fontSize: '1.4rem', textTransform: 'capitalize' }}>
-                {format(state.currentMonth, 'MMMM yyyy', { locale: es })}
+                {format(state.ui.currentMonth, 'MMMM yyyy', { locale: es })}
               </h1>
               <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.ui.currentMonth, 1) })}>
                 <ChevronRight />

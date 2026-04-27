@@ -8,7 +8,7 @@ import { X } from 'lucide-react';
 
 const EditShiftModal = ({ shift, onClose }: { shift: VersionedShift; onClose: () => void }) => {
   const { state, dispatch } = useStore();
-  const doc = state.doctors.find(d => d.id === shift.doctorId);
+  const doc = selectDoctorById(state, shift.doctorId);
 
   const defaultStart = shift.type === 'day' ? '06:00' : '18:00';
   const defaultEndDay = (6 + (doc?.shiftHours || 12)).toString().padStart(2, '0') + ':00';

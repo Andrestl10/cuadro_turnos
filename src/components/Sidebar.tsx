@@ -3,12 +3,19 @@ import { useStore } from '../store/StoreContext';
 import { useDraggable } from '@dnd-kit/core';
 import { validateShifts } from '../utils/validation';
 import { AlertCircle, AlertTriangle, UserPlus, Trash2, Pencil, Link2, Calendar } from 'lucide-react';
+import { selectAllDoctors, selectAllShifts, selectDoctorById } from '../store/selectors';
 import { MiniCalendar } from './MiniCalendar';
 import { EditDoctorModal } from './EditDoctorModal';
 import { PairManager } from './PairManager';
 import type { VersionedDoctor } from '../store/types';
 
-const DraggableDoctor = ({ doctor, onEdit }: { doctor: any, onEdit: (doc: any) => void }) => {
+const DraggableDoctor = ({
+  doctor,
+  onEdit
+}: {
+  doctor: VersionedDoctor;
+  onEdit: (doc: VersionedDoctor) => void;
+}) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const { state, dispatch } = useStore();
   const { attributes, listeners, setNodeRef, transform } = useDraggable({

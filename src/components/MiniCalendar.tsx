@@ -2,15 +2,15 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useStore } from '../store/StoreContext';
-import type { Doctor } from '../types';
+import type { VersionedDoctor } from '../store/types';
 
 interface MiniCalendarProps {
-  doctor: Doctor;
+  doctor: VersionedDoctor;
 }
 
 export const MiniCalendar: React.FC<MiniCalendarProps> = ({ doctor }) => {
   const { state, dispatch } = useStore();
-  const monthStart = startOfMonth(state.currentMonth);
+  const monthStart = startOfMonth(state.ui.currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
