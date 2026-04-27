@@ -143,6 +143,26 @@ body {
   align-items: center;
   gap: 8px;
 }
+.doctor-card-container {
+  margin-bottom: 8px;
+}
+.doctor-card-container .doctor-card {
+  margin-bottom: 0;
+}
+.calendar-popover {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .color-dot {
   width: 12px;
   height: 12px;

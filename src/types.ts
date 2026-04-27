@@ -8,12 +8,14 @@ export interface Doctor {
   fixedDays: number[]; // 0 for Sunday, 1 for Monday, etc.
   fixedShiftType?: ShiftType;
   maxMonthlyShifts: number;
+  maxMonthlyNights?: number;
   shiftHours: number;
   noWeekends: boolean;
   onlyWeekends?: boolean;
   onlyEvenDays?: boolean;
   onlyOddDays?: boolean;
   partnerId?: string; // ID of the doctor who shares the day shift (half-shift pair)
+  blackoutDates?: string[]; // YYYY-MM-DD
 }
 
 export interface Shift {
