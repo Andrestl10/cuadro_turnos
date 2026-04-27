@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type ReactNode
+} from 'react';
 import type { AppState, StoreAction, VersionedDoctor, VersionedShift } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { ScheduleService, toMonthKey } from '../services/ScheduleService';
@@ -298,45 +306,79 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
   syncEnabled = true
 }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
+  /** Avoid saving seed/previous-month entities to the wrong RTDB path before hydrate completes */
+  const hydratedMonthRef = useRef<string | null>(null);
 
   const monthKey = useMemo(() => toMonthKey(state.ui.currentMonth), [state.ui.currentMonth]);
   const contextValue = useMemo(() => ({ state, dispatch }), [state]);
 
-  // Load schedule for current month
+  // Load global doctors + month shifts (doctors: template wins, then legacy schedule.doctors)
   useEffect(() => {
-    if (!syncEnabled) return;
-    
     let cancelled = false;
+    hydratedMonthRef.current = null;
     dispatch({ type: 'SET_SYNC_STATUS', payload: 'loading' });
 
     (async () => {
       try {
-        const remote = await ScheduleService.loadSchedule(monthKey);
+        const [template, remote] = await Promise.all([
+          ScheduleService.loadDoctorTemplate().catch((err) => {
+            console.warn('[StoreContext] loadDoctorTemplate failed', err);
+            return null;
+          }),
+          ScheduleService.loadSchedule(monthKey).catch((err) => {
+            console.warn('[StoreContext] loadSchedule failed', err);
+            return null;
+          })
+        ]);
         if (cancelled) return;
-        if (remote) {
-          dispatch({
-            type: 'HYDRATE_MONTH',
-            payload: { doctors: remote.doctors, shifts: remote.shifts }
-          });
+
+        const hasTemplate = Boolean(template && Object.keys(template).length > 0);
+        const hasRemote = remote !== null;
+
+        if (!hasTemplate && !hasRemote) {
+          dispatch({ type: 'SET_SYNC_STATUS', payload: 'idle' });
+          return;
+        }
+
+        let doctors: VersionedDoctor[] = [];
+        if (hasTemplate && template) {
+          doctors = Object.values(template);
+        } else if (remote?.doctors?.length) {
+          doctors = remote.doctors;
+        }
+
+        const shifts = remote?.shifts ?? [];
+
+        dispatch({
+          type: 'HYDRATE_MONTH',
+          payload: { doctors, shifts }
+        });
+        if (remote?.updatedAt) {
           dispatch({ type: 'SET_LAST_SYNC_AT', payload: remote.updatedAt });
         }
         dispatch({ type: 'SET_SYNC_STATUS', payload: 'idle' });
+        dispatch({ type: 'SET_SYNC_ERROR', payload: null });
       } catch (err) {
         if (cancelled) return;
-        console.warn('[StoreContext] loadSchedule failed', err);
+        console.warn('[StoreContext] month load failed', err);
         dispatch({ type: 'SET_SYNC_ERROR', payload: (err as Error).message });
         dispatch({ type: 'SET_SYNC_STATUS', payload: 'error' });
+      } finally {
+        if (!cancelled) {
+          hydratedMonthRef.current = monthKey;
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [monthKey, syncEnabled]);
+  }, [monthKey]);
 
-  // Save schedule when doctors/shifts change (with debounce)
+  // Save template doctors + month schedule (admin only); debounced
   useEffect(() => {
     if (!syncEnabled) return;
+    if (hydratedMonthRef.current !== monthKey) return;
 
     dispatch({ type: 'SET_SYNC_STATUS', payload: 'syncing' });
 
@@ -348,7 +390,10 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
         version: 1
       };
 
-      ScheduleService.saveSchedule(monthKey, scheduleData)
+      Promise.all([
+        ScheduleService.saveDoctorTemplate(state.entities.doctors),
+        ScheduleService.saveSchedule(monthKey, scheduleData)
+      ])
         .then(() => {
           dispatch({ type: 'SET_LAST_SYNC_AT', payload: Date.now() });
           dispatch({ type: 'CLEAR_PENDING_CHANGES' });
@@ -356,7 +401,7 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
           dispatch({ type: 'SET_SYNC_ERROR', payload: null });
         })
         .catch((err) => {
-          console.warn('[StoreContext] saveSchedule failed', err);
+          console.warn('[StoreContext] save failed', err);
           dispatch({ type: 'SET_SYNC_ERROR', payload: (err as Error).message });
           dispatch({ type: 'SET_SYNC_STATUS', payload: 'error' });
         });

@@ -23,6 +23,11 @@ export function schedulePath(monthKey: string): string {
   return `schedules/${monthKey}`;
 }
 
+/** Global doctor roster (all fields); month snapshots reference shifts only logically */
+export function doctorTemplatePath(): string {
+  return 'template/doctors';
+}
+
 /**
  * Convert legacy array format to versioned format
  * For existing data without version info
@@ -59,6 +64,21 @@ export function normalizeScheduleDoc(raw: unknown): ScheduleData | null {
   return { doctors, shifts, updatedAt, version };
 }
 
+/**
+ * Normalize RTDB object map of doctors (id -> VersionedDoctor-like).
+ */
+export function normalizeDoctorTemplate(raw: unknown): Record<string, VersionedDoctor> {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, VersionedDoctor> = {};
+  for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (val === null || typeof val !== 'object' || Array.isArray(val)) continue;
+    const d = val as Doctor & { version?: number; lastModifiedAt?: number };
+    const id = isNonEmptyString(d.id) ? d.id : key;
+    out[id] = addVersionIfMissing({ ...d, id }) as VersionedDoctor;
+  }
+  return out;
+}
+
 export class ScheduleService {
   private static listeners: Map<string, Unsubscribe> = new Map();
 
@@ -73,6 +93,35 @@ export class ScheduleService {
       return normalizeScheduleDoc(snapshot.val());
     } catch (error) {
       console.error('[ScheduleService] loadSchedule failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load global doctor roster (full VersionedDoctor per id).
+   */
+  static async loadDoctorTemplate(): Promise<Record<string, VersionedDoctor> | null> {
+    const db = FirebaseService.getDb();
+    try {
+      const snapshot = await get(ref(db, doctorTemplatePath()));
+      if (!snapshot.exists()) return null;
+      const normalized = normalizeDoctorTemplate(snapshot.val());
+      return Object.keys(normalized).length > 0 ? normalized : null;
+    } catch (error) {
+      console.error('[ScheduleService] loadDoctorTemplate failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Persist global doctor roster (overwrites template/doctors map).
+   */
+  static async saveDoctorTemplate(doctors: Record<string, VersionedDoctor>): Promise<void> {
+    const db = FirebaseService.getDb();
+    try {
+      await set(ref(db, doctorTemplatePath()), doctors);
+    } catch (error) {
+      console.error('[ScheduleService] saveDoctorTemplate failed:', error);
       throw error;
     }
   }

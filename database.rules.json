@@ -17,6 +17,13 @@
       }
     },
 
+    "template": {
+      "doctors": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'admin'"
+      }
+    },
+
     "requests": {
       "$monthKey": {
         ".read": "auth != null && (root.child('users/' + auth.uid + '/role').val() === 'admin' || (query.orderByChild == 'uid' && query.equalTo == auth.uid))",
