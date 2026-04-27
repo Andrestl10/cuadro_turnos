@@ -61,7 +61,13 @@ export function normalizeScheduleDoc(raw: unknown): ScheduleData | null {
 
   const version = typeof o.version === 'number' ? o.version : 1;
 
-  return { doctors, shifts, updatedAt, version };
+  const publishedRaw = o.publishedAt;
+  const publishedAt =
+    typeof publishedRaw === 'number' && Number.isFinite(publishedRaw)
+      ? publishedRaw
+      : null;
+
+  return { doctors, shifts, updatedAt, version, publishedAt };
 }
 
 /**
@@ -168,7 +174,13 @@ export class ScheduleService {
       (snapshot) => {
         try {
           if (!snapshot.exists()) {
-            onData({ doctors: [], shifts: [], updatedAt: Date.now(), version: 1 });
+            onData({
+              doctors: [],
+              shifts: [],
+              updatedAt: Date.now(),
+              version: 1,
+              publishedAt: null
+            });
             return;
           }
           const data = normalizeScheduleDoc(snapshot.val());
@@ -311,11 +323,17 @@ export class ScheduleService {
       }
     });
 
+    const pubCandidates = [local.publishedAt, remote.publishedAt].filter(
+      (x): x is number => typeof x === 'number' && Number.isFinite(x)
+    );
+    const publishedAt = pubCandidates.length > 0 ? Math.max(...pubCandidates) : null;
+
     return {
       doctors: Array.from(doctorMap.values()),
       shifts: Array.from(shiftMap.values()),
       updatedAt: Date.now(),
-      version: Math.max(local.version, remote.version) + 1
+      version: Math.max(local.version, remote.version) + 1,
+      publishedAt
     };
   }
 

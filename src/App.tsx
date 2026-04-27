@@ -8,7 +8,17 @@ import { RequestsPanel } from './components/RequestsPanel';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { addMonths, subMonths, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Undo2, Redo2, Download, Upload, ChevronLeft, ChevronRight, Wand2, Sparkles } from 'lucide-react';
+import {
+  Undo2,
+  Redo2,
+  Download,
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  Wand2,
+  Sparkles,
+  Send
+} from 'lucide-react';
 import { generateSchedule } from './utils/autoSchedule';
 import { generateAISchedule } from './utils/aiScheduler';
 import type { ShiftType } from './types';
@@ -17,7 +27,7 @@ import './index.css';
 
 // ─── Main app content (admin = full access, doctor = read-only) ──────────────
 const AppContent = ({ readOnly }: { readOnly: boolean }) => {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, publishCurrentMonth } = useStore();
   const { profile, logout } = useAuth();
   const [activeDoctor, setActiveDoctor] = useState<VersionedDoctor | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -117,9 +127,10 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
         <div className="main-content">
           <div className="header glass" style={{ padding: '12px 20px', marginBottom: '24px' }}>
             {/* Month nav */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <button
                 className="btn-icon"
+                type="button"
                 onClick={() => dispatch({ type: 'SET_MONTH', payload: subMonths(state.ui.currentMonth, 1) })}
               >
                 <ChevronLeft />
@@ -127,9 +138,32 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
               <h1 style={{ margin: 0, fontSize: '1.4rem', textTransform: 'capitalize' }}>
                 {format(state.ui.currentMonth, 'MMMM yyyy', { locale: es })}
               </h1>
-              <button className="btn-icon" onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.ui.currentMonth, 1) })}>
+              <button
+                className="btn-icon"
+                type="button"
+                onClick={() => dispatch({ type: 'SET_MONTH', payload: addMonths(state.ui.currentMonth, 1) })}
+              >
                 <ChevronRight />
               </button>
+              {state.ui.monthPublishedAt != null ? (
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: '#15803d',
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    padding: '4px 10px',
+                    borderRadius: '999px'
+                  }}
+                >
+                  Publicado{' '}
+                  {format(new Date(state.ui.monthPublishedAt), "d MMM yyyy · HH:mm", { locale: es })}
+                </span>
+              ) : (
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Aún no publicado oficialmente
+                </span>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -142,6 +176,23 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
 
               {!readOnly && (
                 <>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => void publishCurrentMonth()}
+                    disabled={
+                      state.sync.status === 'loading' ||
+                      state.sync.status === 'syncing'
+                    }
+                    style={{
+                      background: 'linear-gradient(135deg, #0d9488, #059669)',
+                      color: 'white',
+                      border: 'none',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Send size={18} /> Publicar turno
+                  </button>
                   <button 
                     className="btn" 
                     style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', color: 'white' }} 
@@ -153,11 +204,27 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
                   <button className="btn" style={{ background: 'white', color: 'var(--primary)', borderColor: 'var(--primary)', border: '1px solid' }} onClick={handleAutoSchedule}>
                     <Wand2 size={18} /> Autocompletar
                   </button>
-                  <button className="btn" style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'UNDO' })} disabled={state.past.length === 0}>
-                    <Undo2 size={18} /> Deshacer
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Deshacer"
+                    aria-label="Deshacer"
+                    style={{ background: 'white', opacity: state.past.length === 0 ? 0.5 : 1, padding: '8px 12px' }}
+                    onClick={() => dispatch({ type: 'UNDO' })}
+                    disabled={state.past.length === 0}
+                  >
+                    <Undo2 size={18} />
                   </button>
-                  <button className="btn" style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1 }} onClick={() => dispatch({ type: 'REDO' })} disabled={state.future.length === 0}>
-                    <Redo2 size={18} /> Rehacer
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Rehacer"
+                    aria-label="Rehacer"
+                    style={{ background: 'white', opacity: state.future.length === 0 ? 0.5 : 1, padding: '8px 12px' }}
+                    onClick={() => dispatch({ type: 'REDO' })}
+                    disabled={state.future.length === 0}
+                  >
+                    <Redo2 size={18} />
                   </button>
                   <button className="btn btn-primary" onClick={exportData}>
                     <Download size={18} /> Exportar

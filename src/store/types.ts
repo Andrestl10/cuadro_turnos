@@ -43,6 +43,8 @@ export interface SyncState {
 /** UI state for component interaction */
 export interface UIState {
   currentMonth: Date;
+  /** Last RTDB `publishedAt` for the visible month (null = not published yet) */
+  monthPublishedAt: number | null;
   selectedDoctorId: string | null;
   isValidating: boolean;
   showConflictModal: boolean;
@@ -80,6 +82,8 @@ export interface ScheduleData {
   shifts: VersionedShift[];
   updatedAt: number;
   version: number;
+  /** When set, admins marked this month as published for all users */
+  publishedAt?: number | null;
 }
 
 /** Union type for reducer actions */
@@ -102,7 +106,15 @@ export type StoreAction =
   | { type: 'SET_OFFLINE_MODE'; payload: boolean }
   
   // Sync & Loading
-  | { type: 'HYDRATE_MONTH'; payload: { doctors: VersionedDoctor[]; shifts: VersionedShift[] } }
+  | {
+      type: 'HYDRATE_MONTH';
+      payload: {
+        doctors: VersionedDoctor[];
+        shifts: VersionedShift[];
+        publishedAt?: number | null;
+      };
+    }
+  | { type: 'SET_MONTH_PUBLISHED_AT'; payload: number }
   | { type: 'SET_SYNC_STATUS'; payload: SyncState['status'] }
   | { type: 'ADD_PENDING_CHANGE'; payload: SyncState['pendingChanges'][0] }
   | { type: 'CLEAR_PENDING_CHANGES' }

@@ -74,6 +74,52 @@ export const validateShifts = (shifts: Shift[], doctors: Doctor[]): ValidationRe
         });
       }
 
+      // Check onlyWeekends (must be Sat/Sun only)
+      if (doc.onlyWeekends && !isWeekend(parseISO(current.dateStr))) {
+        results.push({
+          isValid: false,
+          message: `Dr. ${doc.name} solo puede fines de semana; no puede el ${current.dateStr}.`,
+          type: 'error',
+          doctorId: doc.id,
+          dateStr: current.dateStr
+        });
+      }
+
+      // Calendar day parity (modal: días 2,4,6… vs 1,3,5…)
+      const dom = parseISO(current.dateStr).getDate();
+      if (doc.onlyEvenDays && dom % 2 !== 0) {
+        results.push({
+          isValid: false,
+          message: `Dr. ${doc.name} solo días pares del mes; no puede el ${current.dateStr}.`,
+          type: 'error',
+          doctorId: doc.id,
+          dateStr: current.dateStr
+        });
+      }
+      if (doc.onlyOddDays && dom % 2 === 0) {
+        results.push({
+          isValid: false,
+          message: `Dr. ${doc.name} solo días impares del mes; no puede el ${current.dateStr}.`,
+          type: 'error',
+          doctorId: doc.id,
+          dateStr: current.dateStr
+        });
+      }
+
+      // Fixed weekly pattern (0=Sun … 6=Sat)
+      if (doc.isFixed && doc.fixedDays.length > 0) {
+        const dow = parseISO(current.dateStr).getDay();
+        if (!doc.fixedDays.includes(dow)) {
+          results.push({
+            isValid: false,
+            message: `Dr. ${doc.name} solo trabaja ciertos días de semana; no corresponde el ${current.dateStr}.`,
+            type: 'error',
+            doctorId: doc.id,
+            dateStr: current.dateStr
+          });
+        }
+      }
+
       // Check blackout dates
       if (doc.blackoutDates?.includes(current.dateStr)) {
         results.push({

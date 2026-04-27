@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -7,12 +8,13 @@ import React, {
   useRef,
   type ReactNode
 } from 'react';
-import type { AppState, StoreAction, VersionedDoctor, VersionedShift } from './types';
+import type { AppState, ScheduleData, StoreAction, VersionedDoctor, VersionedShift } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { ScheduleService, toMonthKey } from '../services/ScheduleService';
 
 const initialUIState = {
   currentMonth: new Date(),
+  monthPublishedAt: null as number | null,
   selectedDoctorId: null,
   isValidating: false,
   showConflictModal: false,
@@ -188,7 +190,14 @@ const reducer = (state: AppState, action: StoreAction): AppState => {
     }
 
     case 'SET_MONTH': {
-      return { ...state, ui: { ...state.ui, currentMonth: action.payload } };
+      return {
+        ...state,
+        ui: { ...state.ui, currentMonth: action.payload, monthPublishedAt: null }
+      };
+    }
+
+    case 'SET_MONTH_PUBLISHED_AT': {
+      return { ...state, ui: { ...state.ui, monthPublishedAt: action.payload } };
     }
 
     case 'SET_SELECTED_DOCTOR': {
@@ -206,6 +215,9 @@ const reducer = (state: AppState, action: StoreAction): AppState => {
     case 'HYDRATE_MONTH': {
       const docList = Array.isArray(action.payload.doctors) ? action.payload.doctors : [];
       const shiftList = Array.isArray(action.payload.shifts) ? action.payload.shifts : [];
+      const pa = action.payload.publishedAt;
+      const monthPublishedAt =
+        typeof pa === 'number' && Number.isFinite(pa) ? pa : null;
       const doctors: Record<string, VersionedDoctor> = {};
       docList.forEach(doc => {
         doctors[doc.id] = {
@@ -225,6 +237,7 @@ const reducer = (state: AppState, action: StoreAction): AppState => {
       return {
         ...state,
         entities: { doctors, shifts },
+        ui: { ...state.ui, monthPublishedAt },
         past: [],
         future: [],
         sync: { ...state.sync, status: 'idle' }
@@ -299,7 +312,14 @@ const reducer = (state: AppState, action: StoreAction): AppState => {
   }
 };
 
-const StoreContext = createContext<{ state: AppState; dispatch: React.Dispatch<StoreAction> } | undefined>(undefined);
+export type StoreContextValue = {
+  state: AppState;
+  dispatch: React.Dispatch<StoreAction>;
+  /** Admin: persist month + template and set `publishedAt` so all roles see the official grid */
+  publishCurrentMonth: () => Promise<void>;
+};
+
+const StoreContext = createContext<StoreContextValue | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolean }> = ({
   children,
@@ -310,7 +330,47 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
   const hydratedMonthRef = useRef<string | null>(null);
 
   const monthKey = useMemo(() => toMonthKey(state.ui.currentMonth), [state.ui.currentMonth]);
-  const contextValue = useMemo(() => ({ state, dispatch }), [state]);
+
+  const publishCurrentMonth = useCallback(async () => {
+    if (!syncEnabled) return;
+    if (hydratedMonthRef.current !== monthKey) {
+      window.alert('Espera a que termine de cargar el mes antes de publicar.');
+      return;
+    }
+    const now = Date.now();
+    const scheduleData: ScheduleData = {
+      doctors: Object.values(state.entities.doctors),
+      shifts: Object.values(state.entities.shifts),
+      updatedAt: now,
+      version: 1,
+      publishedAt: now
+    };
+    dispatch({ type: 'SET_SYNC_STATUS', payload: 'syncing' });
+    try {
+      await Promise.all([
+        ScheduleService.saveDoctorTemplate(state.entities.doctors),
+        ScheduleService.saveSchedule(monthKey, scheduleData)
+      ]);
+      dispatch({ type: 'SET_MONTH_PUBLISHED_AT', payload: now });
+      dispatch({ type: 'SET_LAST_SYNC_AT', payload: now });
+      dispatch({ type: 'CLEAR_PENDING_CHANGES' });
+      dispatch({ type: 'SET_SYNC_STATUS', payload: 'idle' });
+      dispatch({ type: 'SET_SYNC_ERROR', payload: null });
+      window.alert(
+        'Cuadro publicado. Los turnos de este mes quedaron guardados en la nube y los pueden ver administradores y médicos.'
+      );
+    } catch (err) {
+      console.warn('[StoreContext] publishCurrentMonth failed', err);
+      dispatch({ type: 'SET_SYNC_ERROR', payload: (err as Error).message });
+      dispatch({ type: 'SET_SYNC_STATUS', payload: 'error' });
+      window.alert('No se pudo publicar. Revisa la conexión o vuelve a intentar.');
+    }
+  }, [syncEnabled, monthKey, state.entities.doctors, state.entities.shifts]);
+
+  const contextValue = useMemo(
+    () => ({ state, dispatch, publishCurrentMonth }),
+    [state, dispatch, publishCurrentMonth]
+  );
 
   // Load global doctors + month shifts (doctors: template wins, then legacy schedule.doctors)
   useEffect(() => {
@@ -351,7 +411,11 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
 
         dispatch({
           type: 'HYDRATE_MONTH',
-          payload: { doctors, shifts }
+          payload: {
+            doctors,
+            shifts,
+            publishedAt: remote?.publishedAt ?? null
+          }
         });
         if (remote?.updatedAt) {
           dispatch({ type: 'SET_LAST_SYNC_AT', payload: remote.updatedAt });
@@ -383,11 +447,12 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
     dispatch({ type: 'SET_SYNC_STATUS', payload: 'syncing' });
 
     const handle = globalThis.setTimeout(() => {
-      const scheduleData = {
+      const scheduleData: ScheduleData = {
         doctors: Object.values(state.entities.doctors),
         shifts: Object.values(state.entities.shifts),
         updatedAt: Date.now(),
-        version: 1
+        version: 1,
+        publishedAt: state.ui.monthPublishedAt
       };
 
       Promise.all([
@@ -410,7 +475,7 @@ export const StoreProvider: React.FC<{ children: ReactNode; syncEnabled?: boolea
     return () => {
       globalThis.clearTimeout(handle);
     };
-  }, [monthKey, state.entities.doctors, state.entities.shifts, syncEnabled]);
+  }, [monthKey, state.entities.doctors, state.entities.shifts, state.ui.monthPublishedAt, syncEnabled]);
 
   return <StoreContext.Provider value={contextValue}>{children}</StoreContext.Provider>;
 };
