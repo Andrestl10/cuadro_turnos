@@ -96,6 +96,7 @@ export type StoreAction =
   // Shifts
   | { type: 'ADD_SHIFT'; payload: Omit<Shift, 'id'> }
   | { type: 'ADD_SHIFTS'; payload: Array<Omit<Shift, 'id'>> }
+  | { type: 'REPLACE_ALL_SHIFTS'; payload: Array<Omit<Shift, 'id'>> }
   | { type: 'UPDATE_SHIFT'; payload: VersionedShift }
   | { type: 'REMOVE_SHIFT'; payload: string }
   

@@ -160,6 +160,20 @@ const reducer = (state: AppState, action: StoreAction): AppState => {
       });
     }
 
+    case 'REPLACE_ALL_SHIFTS': {
+      const newShifts: Record<string, VersionedShift> = {};
+      action.payload.forEach(shift => {
+        const id = uuidv4();
+        newShifts[id] = { ...shift, id, version: 1, lastModifiedAt: Date.now() } as VersionedShift;
+      });
+      return saveHistory({
+        entities: {
+          ...state.entities,
+          shifts: newShifts
+        }
+      });
+    }
+
     case 'UPDATE_SHIFT': {
       const shiftId = action.payload.id;
       return saveHistory({

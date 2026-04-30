@@ -81,6 +81,8 @@ type DroppableZoneProps = {
   id: string;
   title: string;
   type: 'day' | 'night';
+  customStartTime?: string;
+  customEndTime?: string;
   shifts: VersionedShift[];
   dateStr: string;
   onEditShift: (shift: VersionedShift) => void;
@@ -91,6 +93,8 @@ const DroppableZone = ({
   id,
   title,
   type,
+  customStartTime,
+  customEndTime,
   shifts,
   dateStr,
   onEditShift,
@@ -98,7 +102,7 @@ const DroppableZone = ({
 }: DroppableZoneProps) => {
   const { isOver, setNodeRef } = useDroppable({
     id,
-    data: { dateStr, type }
+    data: { dateStr, type, customStartTime, customEndTime }
   });
   const { dispatch, state } = useStore();
 
@@ -134,7 +138,6 @@ const DroppableZone = ({
                   onClick={() => !readOnly && onEditShift(shift)} title={`${doc.name} (${timeA}) - Mañana`}>
                   <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{doc.name}</span>
-                    <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeA}</span>
                   </div>
                   {!readOnly && (
                     <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: shift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -147,7 +150,6 @@ const DroppableZone = ({
                   onClick={() => !readOnly && onEditShift(partnerShift)} title={`${partnerDoc.name} (${timeB}) - Tarde`}>
                   <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, lineHeight: 1.2 }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{partnerDoc.name}</span>
-                    <span style={{ fontSize: '0.58rem', opacity: 0.9, color: 'white' }}>{timeB}</span>
                   </div>
                   {!readOnly && (
                     <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_SHIFT', payload: partnerShift.id }); }} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -190,18 +192,6 @@ const DroppableZone = ({
                   }}
                 >
                   {doc.name}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.6rem',
-                    opacity: 0.9,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    width: '100%'
-                  }}
-                >
-                  {timeText}
                 </span>
               </div>
               {!readOnly && (
@@ -254,6 +244,15 @@ export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
             const isCurrentMonth = isSameMonth(day, monthStart);
             const wknd = isWeekend(day);
 
+            const shifts6to13 = dayShiftsList.filter(s => s.customStartTime === '06:00' && s.customEndTime === '13:00');
+            const shifts6to18 = dayShiftsList.filter(s => (s.customStartTime === '06:00' && s.customEndTime === '18:00') || (!s.customStartTime && !s.customEndTime));
+            const shifts8to20 = dayShiftsList.filter(s => s.customStartTime === '08:00' && s.customEndTime === '20:00');
+            const shifts14to20 = dayShiftsList.filter(s => s.customStartTime === '14:00' && s.customEndTime === '20:00');
+            
+            const allMatchedIds = new Set([...shifts6to13, ...shifts6to18, ...shifts8to20, ...shifts14to20].map(s => s.id));
+            const otherDayShifts = dayShiftsList.filter(s => !allMatchedIds.has(s.id));
+            shifts6to18.push(...otherDayShifts);
+
             return (
               <div
                 key={day.toString()}
@@ -274,15 +273,52 @@ export const Calendar = ({ readOnly = false }: { readOnly?: boolean }) => {
                   )}
                 </div>
 
-                <DroppableZone
-                  id={`drop-${dateStr}-day`}
-                  title={`Día (${dayShiftsList.length}/${wknd ? 4 : 7})`}
-                  type="day"
-                  shifts={dayShiftsList}
-                  dateStr={dateStr}
-                  onEditShift={setEditingShift}
-                  readOnly={readOnly}
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <DroppableZone
+                    id={`drop-${dateStr}-day-6-13`}
+                    title={`6:00 - 13:00 (${shifts6to13.length})`}
+                    type="day"
+                    customStartTime="06:00"
+                    customEndTime="13:00"
+                    shifts={shifts6to13}
+                    dateStr={dateStr}
+                    onEditShift={setEditingShift}
+                    readOnly={readOnly}
+                  />
+                  <DroppableZone
+                    id={`drop-${dateStr}-day-6-18`}
+                    title={`6:00 - 18:00 (${shifts6to18.length})`}
+                    type="day"
+                    customStartTime="06:00"
+                    customEndTime="18:00"
+                    shifts={shifts6to18}
+                    dateStr={dateStr}
+                    onEditShift={setEditingShift}
+                    readOnly={readOnly}
+                  />
+                  <DroppableZone
+                    id={`drop-${dateStr}-day-8-20`}
+                    title={`8:00 - 20:00 (${shifts8to20.length})`}
+                    type="day"
+                    customStartTime="08:00"
+                    customEndTime="20:00"
+                    shifts={shifts8to20}
+                    dateStr={dateStr}
+                    onEditShift={setEditingShift}
+                    readOnly={readOnly}
+                  />
+                  <DroppableZone
+                    id={`drop-${dateStr}-day-14-20`}
+                    title={`14:00 - 20:00 (${shifts14to20.length})`}
+                    type="day"
+                    customStartTime="14:00"
+                    customEndTime="20:00"
+                    shifts={shifts14to20}
+                    dateStr={dateStr}
+                    onEditShift={setEditingShift}
+                    readOnly={readOnly}
+                  />
+                </div>
 
                 <DroppableZone
                   id={`drop-${dateStr}-night`}

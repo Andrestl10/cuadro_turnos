@@ -45,14 +45,14 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
     const { over, active } = event;
     setActiveDoctor(null);
     if (over && active.data.current?.doctor && over.data.current) {
-      const { dateStr, type } = over.data.current as { dateStr: string; type: ShiftType };
+      const { dateStr, type, customStartTime, customEndTime } = over.data.current as { dateStr: string; type: ShiftType; customStartTime?: string; customEndTime?: string };
       const doctorId = (active.data.current.doctor as VersionedDoctor).id;
       const allShifts = Object.values(state.entities.shifts);
       const alreadyAssigned = allShifts.find(
-        (s) => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId
+        (s) => s.dateStr === dateStr && s.type === type && s.doctorId === doctorId && s.customStartTime === customStartTime && s.customEndTime === customEndTime
       );
       if (!alreadyAssigned) {
-        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type, doctorId } });
+        dispatch({ type: 'ADD_SHIFT', payload: { dateStr, type, doctorId, customStartTime, customEndTime } });
       }
     }
   };
@@ -78,7 +78,16 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
         try {
           const parsed = JSON.parse(event.target?.result as string);
           if (parsed.doctors && parsed.shifts) {
-            alert("Para importar datos, esta característica se habilitará en la próxima actualización de estado.");
+            dispatch({
+              type: 'HYDRATE_MONTH',
+              payload: {
+                doctors: Object.values(parsed.doctors),
+                shifts: Object.values(parsed.shifts)
+              }
+            });
+            alert("Datos importados con éxito.");
+          } else {
+            alert("El archivo no tiene el formato correcto.");
           }
         } catch { alert("Error importando archivo."); }
       };
@@ -104,7 +113,7 @@ const AppContent = ({ readOnly }: { readOnly: boolean }) => {
       const shiftsExisting = Object.values(state.entities.shifts);
       const { shifts, reasoning } = await generateAISchedule(state.ui.currentMonth, doctors, shiftsExisting);
       if (shifts.length > 0) {
-        dispatch({ type: 'ADD_SHIFTS', payload: shifts });
+        dispatch({ type: 'REPLACE_ALL_SHIFTS', payload: shifts });
         alert("Sugerencia de IA aplicada.\n\nRazonamiento: " + reasoning);
       } else {
         alert("La IA no encontró turnos adicionales válidos para asignar.");
