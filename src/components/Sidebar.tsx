@@ -9,6 +9,11 @@ import { EditDoctorModal } from './EditDoctorModal';
 import { PairManager } from './PairManager';
 import type { VersionedDoctor } from '../store/types';
 
+const COLOR_PALETTE = [
+  '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E', 
+  '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1', 
+  '#8B5CF6', '#A855F7', '#D946EF', '#EC4899', '#F43F5E'
+];
 const DraggableDoctor = ({
   doctor,
   onEdit
@@ -87,6 +92,7 @@ export const Sidebar = () => {
   const validationResults = validateShifts(allShifts, allDoctors);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocName, setNewDocName] = useState('');
+  const [newDocColor, setNewDocColor] = useState(COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)]);
   const [maxShifts, setMaxShifts] = useState(15);
   const [maxNights, setMaxNights] = useState(4);
   const [shiftHours, setShiftHours] = useState(12);
@@ -106,14 +112,14 @@ export const Sidebar = () => {
 
   const handleAddDoctor = () => {
     if (newDocName.trim()) {
-      const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
       dispatch({
         type: 'ADD_DOCTOR', payload: {
-          name: newDocName, color: randomColor, isFixed: false, fixedDays: [], maxMonthlyShifts: maxShifts, maxMonthlyNights: maxNights, shiftHours: shiftHours,
+          name: newDocName, color: newDocColor, isFixed: false, fixedDays: [], maxMonthlyShifts: maxShifts, maxMonthlyNights: maxNights, shiftHours: shiftHours,
           noWeekends: false, blackoutDates: []
         }
       });
       setNewDocName('');
+      setNewDocColor(COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)]);
       setMaxShifts(15);
       setMaxNights(4);
       setShiftHours(12);
@@ -160,6 +166,32 @@ export const Sidebar = () => {
             value={newDocName}
             onChange={e => setNewDocName(e.target.value)}
           />
+          <div className="form-group" style={{ marginBottom: '4px' }}>
+            <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Color</label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {COLOR_PALETTE.map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewDocColor(color)}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: color,
+                    border: newDocColor === color ? '2px solid var(--primary)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    padding: 0,
+                    boxShadow: newDocColor === color ? '0 0 0 2px white inset' : 'none'
+                  }}
+                  title={color}
+                />
+              ))}
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '50%', background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)', border: '2px solid transparent' }} title="Color personalizado">
+                <input type="color" value={newDocColor} onChange={(e) => setNewDocColor(e.target.value)} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} />
+              </label>
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Turnos Max / Mes</label>
@@ -235,8 +267,8 @@ export const Sidebar = () => {
         </div>
       )}
 
-      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '16px' }}>
-        <h3>Alertas</h3>
+      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: '12px' }}>
+        <h3 style={{ fontSize: '1rem', margin: '0 0 8px 0' }}>Alertas</h3>
         <div className="alerts-container">
           {validationResults.length === 0 ? (
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Todo en orden.</p>

@@ -9,6 +9,12 @@ import {
 } from '../utils/doctorProfileValidation';
 import { X, Sun, Moon } from 'lucide-react';
 
+const COLOR_PALETTE = [
+  '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E', 
+  '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#6366F1', 
+  '#8B5CF6', '#A855F7', '#D946EF', '#EC4899', '#F43F5E'
+];
+
 interface Props {
   doctor: VersionedDoctor;
   onClose: () => void;
@@ -156,6 +162,33 @@ export const EditDoctorModal = ({ doctor, onClose }: Props) => {
             value={formData.name}
             onChange={(e) => handleChange('name', e.target.value)}
           />
+        </div>
+
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label>Color</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+            {COLOR_PALETTE.map(color => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => handleChange('color', color)}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: color,
+                  border: formData.color === color ? '2px solid var(--primary)' : '2px solid transparent',
+                  cursor: 'pointer',
+                  padding: 0,
+                  boxShadow: formData.color === color ? '0 0 0 2px white inset' : 'none'
+                }}
+                title={color}
+              />
+            ))}
+            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)', border: '2px solid transparent' }} title="Color personalizado">
+              <input type="color" value={formData.color} onChange={(e) => handleChange('color', e.target.value)} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} />
+            </label>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>

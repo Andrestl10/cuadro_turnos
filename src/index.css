@@ -276,11 +276,11 @@ body {
 
 /* Alerts */
 .alerts-container {
-  margin-top: 20px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 300px;
+  max-height: 120px;
   overflow-y: auto;
 }
 .alert {
